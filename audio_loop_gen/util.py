@@ -1,7 +1,11 @@
-import torch
+import os
+import random
+import logging
+from logging.handlers import RotatingFileHandler
 
 import numpy as np
 from numpy import ndarray
+import torch
 
 import librosa
 
@@ -254,6 +258,32 @@ def trim_silence(audio_data: np.ndarray, sample_rate: int, min_silence_ms: int =
     # Stack processed channels back into multi-channel format
     return np.stack(processed_audio_channels, axis=0)
 
+def slice_and_blend(audio: AudioData, loop_start: int, loop_end: int, blend_samples:int = 100) -> AudioData:
+    # Slice the loop and apply blending
+    # Quick blend to avoid clicks
+    audio_data = audio.audio_data
+    lead_start = max(0, loop_start - blend_samples)
+    if audio_data.ndim == 2 and audio_data.shape[0] == 2:
+        audio_data = audio_data[:, loop_start:loop_end]
+        lead = audio_data[:, lead_start:loop_start]
+        num_lead = len(lead[0])
+        if num_lead > 0:
+            audio_data[:, -num_lead:] *= np.linspace(1, 0, num_lead, dtype=np.float32)
+            audio_data[:, -num_lead:] += np.linspace(0, 1, num_lead, dtype=np.float32) * lead
+        else:
+            audio_data = crossfade(audio_data, audio.sample_rate, 100)
+    else:
+        audio_data = audio_data[loop_start: loop_end]
+        lead = audio_data[lead_start: loop_start]
+        num_lead = len(lead)
+        if num_lead > 0:
+            audio_data[-num_lead:] *= np.linspace(1, 0, num_lead, dtype=np.float32)
+            audio_data[-num_lead:] += np.linspace(0, 1, num_lead, dtype=np.float32) * lead
+        else:
+            audio_data = crossfade(audio_data, audio.sample_rate, 100)
+            
+    return AudioData(audio_data, audio.sample_rate)
+
 def export_audio(audio: AudioData, filename_base: str, format="wav"):
     """ Write the audio data to a WAV file.
 
@@ -263,4 +293,35 @@ def export_audio(audio: AudioData, filename_base: str, format="wav"):
             filename (str): The name of the file to write to (without extension, it will automatically add .wav).
     """
     wav = torch.from_numpy(audio.audio_data)
-    audio_write(filename_base, wav, audio.sample_rate, strategy="loudness", loudness_compressor=True)
+    audio_write(filename_base, wav, audio.sample_rate, strategy="loudness", loudness_compressor=True, format=format)
+
+# From https://gist.github.com/gatheluck/c57e2a40e3122028ceaecc3cb0d152ac
+def set_all_seeds(seed):
+    random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    
+def setup_global_logging(logs_file:str = "global.log", logs_path: str = os.path.join(".", "logs"), log_level: int = logging.INFO) -> logging.Logger:
+    log_file = os.path.join(logs_path, logs_file)
+
+    # Create log directory if it doesn't exist
+    if not os.path.exists(logs_path):
+        os.makedirs(logs_path, exist_ok=True)
+
+    # Create a logger
+    logger = logging.getLogger('global')
+    logger.setLevel(logging.INFO if log_level < 0 else log_level)
+
+    # Create a handler that writes log messages to a file, with log rotation
+    handler = RotatingFileHandler(
+        log_file, maxBytes=1024*1024*5, backupCount=5)
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+    # Add the handler to the logger
+    logger.addHandler(handler)
+
+    return logger

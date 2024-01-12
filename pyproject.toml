@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "audio_loop_gen"
+version = "0.1.0"
+description = "An ML-based audio loop generator"
+readme = {file = "README.md"}
+authors = [{name = "Plamen H. Dragozov", email = "phd@phdapps.com"}]
+license = {file = "LICENSE"}
+urls = {
+    "Repository" = "https://github.com/phdapps/audio_loop_gen"
+}

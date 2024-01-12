@@ -1,4 +1,4 @@
-from audio_loop_gen import main
+from audio_loop_gen import cli
 
 if __name__ == "__main__":
-    main.main()
+    cli.main()
