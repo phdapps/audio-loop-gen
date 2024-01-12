@@ -1,9 +1,8 @@
 --extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.1.0
 python-ffmpeg
 cython
 numpy
 scipy
-torch==2.1.0
-pydub
 git+https://github.com/facebookresearch/audiocraft.git
 triton ; sys_platform != "win32"
