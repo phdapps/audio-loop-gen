@@ -3,7 +3,7 @@ from numpy import ndarray
 from .util import AudioData, trim_silence
 from .loop_strategy import LoopStrategy, TransientAligned, CrossFade, FadeInOut, BeatDetect
 
-class Looper:
+class LoopGenerator(object):
     def __init__(self, audio_data: ndarray, sample_rate: int, min_loop_duration: int = 30000):
         self.__audio_data = audio_data
         self.__sample_rate = sample_rate
@@ -11,7 +11,7 @@ class Looper:
         audio = self.__prepare_data()
         self.__strategies = self.__prepare_strategies(audio)
 
-    def execute(self) -> AudioData:
+    def generate(self) -> AudioData:
         loop = None
         for strategy in self.__strategies:
             if strategy.evaluate():
@@ -24,7 +24,7 @@ class Looper:
     def __prepare_data(self) -> AudioData:
         """ Do any necessary preprocessing.
         """
-        self.__audio_data = trim_silence(self.__audio_data, self.__sample_rate)
+        self.__audio_data = trim_silence(self.__audio_data, self.__sample_rate, top_db=50)
         return AudioData(self.__audio_data, self.__sample_rate)
 
     def __prepare_strategies(self, audio: AudioData) -> list[LoopStrategy]:
