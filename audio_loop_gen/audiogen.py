@@ -17,6 +17,7 @@ class AudioGenerator:
     def __init__(self, model_id: str = None, device: str = None):
         self.device = device or (
             "cuda" if torch.cuda.is_available() else "cpu")
+        self.__model = None
         self.__load(model_id)
         self.__logger = logging.getLogger("global")
 
@@ -40,15 +41,18 @@ class AudioGenerator:
         self.__logger.info(
             "Generating music using prompt \"%s\" and seed %d...", prompt, seed)
 
-        self.model.set_generation_params(
+        self.__model.set_generation_params(
             duration=params.max_duration, top_k=params.top_k, top_p=params.top_p, temperature=params.temperature, cfg_coef=params.cfg_coef)
 
-        wav = self.model.generate([prompt], progress=True)[0].cpu()
+        wav = self.__model.generate([prompt], progress=True)[0].cpu()
 
-        sample_rate = self.model.sample_rate
+        sample_rate = self.__model.sample_rate
         return sample_rate, wav.numpy()
+    
+    def set_custom_progress_callback(self, callback):
+        self.__model.set_custom_progress_callback(callback)
 
     def __load(self, model_id: str = None):
         if model_id is None:
             model_id = DEFAULT_MODEL_ID
-        self.model = MusicGen.get_pretrained(model_id, device=self.device)
+        self.__model = MusicGen.get_pretrained(model_id, device=self.device)

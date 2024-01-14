@@ -17,7 +17,7 @@ def loopgen_args_parser() -> ArgumentParser:
     parser.add_argument('--model', type=str, default=None,
                         help="Model ID to use for the generation. If not specified, the default model will be used.")
     parser.add_argument('--prompt', type=str,
-                        default="Descritpion of a music segment to generate.")
+                        default="The prompt to use for the audio generation model.")
     parser.add_argument('--bpm', type=int, default=60,
                         help="Beats per minute (bpm) to target in the generated audio from the --prompt argument.")
     parser.add_argument('--max_duration', type=int, default=33,
@@ -61,15 +61,22 @@ def do_loopgen(argv: list[str]):
         # Start the websocket server
         pass
 
-
 def promptgen_args_parser() -> ArgumentParser:
     parser = ArgumentParser(add_help=False)
-    parser.add_argument('--source', type=str,
-                        choices=["local", "openai"], default="local")
+    parser.add_argument('--provider', type=str,
+                        choices=["llama", "openai"], default="openai", help="The LLM provider to use for the prompt generation. 'llama' requires running it locally!")
+    parser.add_argument("--model", type=str, default=None,
+                        help="The name of the LLM model to use. Default for llama is 'mistral' and default for openai is 'gpt-3.5-turbo-1106'.")
     parser.add_argument('--host', type=str, default="localhost",
                         help="Host to connect to for sending the prompts.")
     parser.add_argument('--port', type=str, default="localhost",
                         help="Host to connect to for sending the prompts.")
+    parser.add_argument('--save_path', type=str, default=".",
+                        help="Local path where to save the audio files received from the server.")
+    parser.add_argument('--save_s3', type=str, default=None,
+                        help="S3 bucket name where to save the audio files received from the server. AWS credentials must be configured in environment variables or in a corresponding credentials file.")
+    parser.add_argument('--save_prefix', type=str, default="",
+                        help="Prefix for the saved filenames (could start with a relative path).")
     parser.add_argument("--mode", type=str, help="promptgen")
     return parser
 

@@ -4,6 +4,7 @@ import os
 import random
 from typing import Tuple
 import logging
+import struct
 
 import numpy as np
 from numpy import ndarray
@@ -58,6 +59,36 @@ class AudioData:
     @property
     def is_stereo(self):
         return self.__is_stereo
+    
+    @staticmethod
+    def serialize(audio: 'AudioData') -> bytes:
+        num_channels = 2 if audio.is_stereo else 1
+
+        # Pack sample_rate and num_channels as integers (4 bytes each for int32)
+        header = struct.pack('ii', audio.sample_rate, num_channels)
+
+        # Convert audio_data to bytes
+        audio_data_bytes = audio.audio_data.tobytes()
+
+        # Concatenate the header and audio_data_bytes
+        return header + audio_data_bytes
+        
+    @staticmethod
+    def deserialize(data:bytes) -> 'AudioData':
+        # Unpack sample_rate and num_channels (first 8 bytes, 4 bytes each for int32)
+        sample_rate, num_channels = struct.unpack('ii', data[:8])
+
+        # Extract the audio_data bytes
+        audio_data_bytes = data[8:]
+
+        # Reconstruct the audio_data ndarray
+        # The dtype is assumed to be float32, and shape depends on num_channels
+        if num_channels == 1:
+            audio_data = np.frombuffer(audio_data_bytes, dtype=np.float32)
+        elif num_channels == 2:
+            audio_data = np.frombuffer(audio_data_bytes, dtype=np.float32).reshape(-1, 2)
+
+        return AudioData(audio_data, sample_rate)
 
 class AudioGenParams(object):
     def __init__(self, 
