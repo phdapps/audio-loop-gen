@@ -7,7 +7,7 @@ import torch
 
 from audiocraft.models import MusicGen
 
-from .util import set_all_seeds
+from .util import set_all_seeds, AudioGenParams
 DEFAULT_MODEL_ID = "facebook/musicgen-stereo-large"
 
 class AudioGenerator:
@@ -20,24 +20,28 @@ class AudioGenerator:
         self.__load(model_id)
         self.__logger = logging.getLogger("global")
 
-    def generate(self, prompt: str, bpm: int = 66, seed: int = -1, max_duration: int = 60, top_k: int = 250, top_p: float = 0.0, temperature: float = 1.0, cfg_coef: int = 3) -> Tuple[int, ndarray]:
+    def generate(self, params: AudioGenParams) -> Tuple[int, ndarray]:
+        if not params:
+            raise ValueError("Missing generation params")
+        
+        seed = params.seed
         if not seed or seed < 0:
             seed = torch.seed() % (2**32 - 1)
         elif seed >= 2**32 - 1:
             raise ValueError(f"Seed must be less than {2**32 - 1}")
         set_all_seeds(seed)
 
-        if bpm < 15 or bpm > 300:
+        if params.bpm < 15 or params.bpm > 300:
             raise ValueError(
-                f"Invalid bpm {bpm}, must be between 15.0 and 300.0")
+                f"Invalid bpm {params.bpm}, must be between 15.0 and 300.0")
 
-        prompt = f"{prompt} bpm: {bpm}"
+        prompt = f"{params.prompt} bpm: {params.bpm}"
 
         self.__logger.info(
             "Generating music using prompt \"%s\" and seed %d...", prompt, seed)
 
         self.model.set_generation_params(
-            duration=max_duration, top_k=top_k, top_p=top_p, temperature=temperature, cfg_coef=cfg_coef)
+            duration=params.max_duration, top_k=params.top_k, top_p=params.top_p, temperature=params.temperature, cfg_coef=params.cfg_coef)
 
         wav = self.model.generate([prompt], progress=True)[0].cpu()
 

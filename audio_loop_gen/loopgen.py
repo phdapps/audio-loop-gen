@@ -1,15 +1,12 @@
-from numpy import ndarray
-
-from .util import AudioData, trim_silence
+from .util import AudioData, LoopGenParams, prune_silence
 from .loop_strategy import LoopStrategy, TransientAligned, CrossFade, FadeInOut, BeatDetect
 
 class LoopGenerator(object):
-    def __init__(self, audio_data: ndarray, sample_rate: int, min_loop_duration: int = 30000):
-        self.__audio_data = audio_data
-        self.__sample_rate = sample_rate
-        self.__min_loop_duration = min_loop_duration
-        audio = self.__prepare_data()
-        self.__strategies = self.__prepare_strategies(audio)
+    SILENCE_TOP_DB = 45
+    def __init__(self, audio: AudioData, params: LoopGenParams):
+        self.__min_loop_duration = params.min_duration
+        self.__audio = self.__prepare_data(audio)
+        self.__strategies = self.__prepare_strategies()
 
     def generate(self) -> AudioData:
         loop = None
@@ -21,24 +18,23 @@ class LoopGenerator(object):
 
         return loop
 
-    def __prepare_data(self) -> AudioData:
+    def __prepare_data(self, audio: AudioData) -> AudioData:
         """ Do any necessary preprocessing.
         """
-        self.__audio_data = trim_silence(self.__audio_data, self.__sample_rate, top_db=50)
-        return AudioData(self.__audio_data, self.__sample_rate)
+        return prune_silence(audio, top_db=type(self).SILENCE_TOP_DB)
 
-    def __prepare_strategies(self, audio: AudioData) -> list[LoopStrategy]:
+    def __prepare_strategies(self) -> list[LoopStrategy]:
         """
         Prepare the ordered list of strategies to be used for looping.
         """
         strategies = []
         # Add the strategies here in the order of preference
         strategies.append(BeatDetect(
-            audio=audio, min_loop_duration=self.__min_loop_duration))
+            audio=self.__audio, min_loop_duration=self.__min_loop_duration))
         strategies.append(TransientAligned(
-            audio=audio, min_loop_duration=self.__min_loop_duration))
+            audio=self.__audio, min_loop_duration=self.__min_loop_duration))
         strategies.append(CrossFade(
-            audio=audio, min_loop_duration=self.__min_loop_duration))
+            audio=self.__audio, min_loop_duration=self.__min_loop_duration))
         strategies.append(FadeInOut(
-            audio=audio, min_loop_duration=self.__min_loop_duration, fade_duration=1000))
+            audio=self.__audio, min_loop_duration=self.__min_loop_duration, fade_duration=500))
         return strategies
