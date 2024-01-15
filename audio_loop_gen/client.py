@@ -141,9 +141,9 @@ class LoopGenClient:
             for job in jobs:
                 await self.send_job(job)
         # call from time to time to make sure an error in the main loop doesn't leave us without jobs   
-        asyncio.ensure_future(self.__periodic_generate_jobs())
+        asyncio.ensure_future(self.__delayed_generate_jobs())
         
-    async def __periodic_generate_jobs(self):
+    async def __delayed_generate_jobs(self):
         await asyncio.sleep(PERIODIC_JOB_GENERATION_INTERVAL_SEC)
         await self.__generate_jobs()
             
