@@ -12,6 +12,7 @@ from audio_loop_gen.util import export_audio, AudioData, LoopGenParams
 from audio_loop_gen.logging import setup_global_logging
 from audio_loop_gen.server import LoopGeneratorServer
 
+
 def loopgen_args_parser() -> ArgumentParser:
     parser = ArgumentParser(add_help=False)
     parser.add_argument('--model', type=str, default=None,
@@ -33,6 +34,7 @@ def loopgen_args_parser() -> ArgumentParser:
     parser.add_argument("--mode", type=str, help="loopgen (optional)")
     return parser
 
+
 def do_loopgen(argv: list[str]):
     parser = loopgen_args_parser()
     args = parser.parse_args(argv)
@@ -43,8 +45,8 @@ def do_loopgen(argv: list[str]):
 
     if args.prompt:
         # Generate the CLI prompt audio first before listening for more prompts
-        params = LoopGenParams(prompt=args.prompt, bpm=args.bpm, max_duration=args.max_duration, min_duration=(
-            args.max_duration)//2, seed=args.seed)
+        params = LoopGenParams(prompt=args.prompt, bpm=args.bpm, max_duration=args.max_duration,
+                               min_duration=args.max_duration//2, seed=args.seed)
         sr, audio_data = audiogen.generate(params)
         # don't loose more than 1/3 of the audio
         loopgen = LoopGenerator(AudioData(audio_data, sr), params)
@@ -57,7 +59,7 @@ def do_loopgen(argv: list[str]):
         # Start the websocket server
         server = LoopGeneratorServer(audiogen, port=args.listen)
         server.start()
-        
+
 
 def promptgen_args_parser() -> ArgumentParser:
     parser = ArgumentParser(add_help=False)
@@ -82,7 +84,7 @@ def promptgen_args_parser() -> ArgumentParser:
 def do_promptgen(argv: list[str]):
     parser = promptgen_args_parser()
     args = parser.parse_args(argv)
-    
+
     pass
 
 
@@ -117,7 +119,7 @@ def main():
             parser, loopgen_args_parser(), promptgen_args_parser())
         print(help)
         return
-    
+
     setup_global_logging(log_level=args.log_level)
 
     if args.mode == "loopgen":
