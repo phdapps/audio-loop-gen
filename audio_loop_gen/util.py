@@ -1,5 +1,6 @@
 """ Utility and helper functions for audio processing and loop generation.
 """
+import hashlib
 import os
 import random
 from typing import Tuple
@@ -90,6 +91,15 @@ class AudioData:
 
         return AudioData(audio_data, sample_rate)
 
+class LazyLoggable(object):
+    def __init__(self, callable, *args, **kwargs):
+        self.__callable = callable
+        self.__args = args
+        self.__kwargs = kwargs
+
+    def __str__(self):
+        return self.__callable(*self.__args, **self.__kwargs)
+
 class AudioGenParams(object):
     def __init__(self, 
                  prompt: str, 
@@ -140,15 +150,21 @@ class AudioGenParams(object):
     @property
     def cfg_coef(self) -> int:
         return self.__cfg_coef
-
-class LazyLoggable(object):
-    def __init__(self, callable, *args, **kwargs):
-        self.__callable = callable
-        self.__args = args
-        self.__kwargs = kwargs
-
-    def __str__(self):
-        return self.__callable(*self.__args, **self.__kwargs)
+    
+    def to_dict(self) -> dict:
+        return {
+            "prompt": self.prompt,
+            "max_duration": self.max_duration,
+            "bpm": self.bpm,
+            "seed": self.seed,
+            "top_k": self.top_k,
+            "top_p": self.top_p,
+            "temperature": self.temperature,
+            "cfg_coef": self.cfg_coef
+        }
+    
+    def __str__(self) -> str:
+        return str(self.to_dict())
     
 class LoopGenParams(AudioGenParams):
     def __init__(self, 
@@ -167,6 +183,11 @@ class LoopGenParams(AudioGenParams):
     @property
     def min_duration(self) -> int:
         return self.__min_duration
+    
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data["min_duration"] = self.min_duration
+        return data
 
 def crossfade(audio_data: np.ndarray, sample_rate: int, crossfade_duration_ms: int) -> np.ndarray:
     """ Applies a crossfade effect to the end of an audio segment.
@@ -512,3 +533,6 @@ def set_all_seeds(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
+    
+def calculate_checksum(data: bytes):
+    return hashlib.md5(data).hexdigest()

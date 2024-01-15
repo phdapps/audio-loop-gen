@@ -45,6 +45,7 @@ The project contains a helper CLI module. Usage:
 
                 options:
                 --mode {loopgen,promptgen}
+                --log_level LOG_LEVEL           Log level as defined in the logging module (i.e. DEBUG=10, INFO=20 etc).
                 --help
 
 
@@ -62,7 +63,6 @@ The project contains a helper CLI module. Usage:
                 --file_name FILE_NAME           File name to save the generated audio from the --prompt argument. If not specified, a name will be generated based on the current date and time.
                 --seed SEED                     Seed to use for the generated audio from the --prompt argument. If not specified, a random seed will be used.
                 --listen LISTEN                 A websocket port to listen to for generation commads and send back progress updates and the generated audio data.
-                --log_level LOG_LEVEL           Log level as defined in the logging module (i.e. DEBUG=10, INFO=20 etc).
 
                 [mode = promptgen]
                 Uses an LLM model to generate prompts and other settings for loop generation and sends them to a loopgen server then stores the resulting audio loops.

@@ -10,3 +10,5 @@ blinker
 triton ; sys_platform != "win32"
 ollama ; sys_platform != "win32"
 openai
+boto3
+uuid6
