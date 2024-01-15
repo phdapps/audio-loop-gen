@@ -4,9 +4,9 @@ from .loop_strategy import LoopStrategy, TransientAligned, CrossFade, FadeInOut,
 class LoopGenerator(object):
     SILENCE_TOP_DB = 45
     def __init__(self, audio: AudioData, params: LoopGenParams):
-        assert(audio is not None)
-        assert(params is not None)
-        self.__min_loop_duration = params.min_duration
+        assert audio is not None
+        assert params is not None
+        self.__min_loop_duration = params.min_duration * 1000
         self.__audio = self.__prepare_data(audio)
         self.__strategies = self.__prepare_strategies()
 

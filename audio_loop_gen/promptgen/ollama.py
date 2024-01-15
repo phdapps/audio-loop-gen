@@ -16,11 +16,11 @@ class Ollama(PromptGenerator):
         if not model_id:
             model_id = "gpt-3.5-turbo-1106"
             
-    def generate(self, count:int = 1) -> list[LoopGenParams]:
-        assert(count is not None and count > 0)
-        llm_prompt = self.__format_llm_prompt(count)
+    def generate(self, max_count:int = 1) -> list[LoopGenParams]:
+        assert max_count is not None and max_count > 0
+        llm_prompt = self.__format_llm_prompt(max_count)
         
-        return ollama.generate_prompts(count)
+        return ollama.generate_prompts(max_count)
     
     def __format_llm_prompt(self, count:int = 1) -> str:
         return PROMPT_TEMPLATE.format(count=count)

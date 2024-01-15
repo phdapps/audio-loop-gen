@@ -1,6 +1,6 @@
 import os
 import tempfile
-
+import logging
 import boto3
 
 from .base import AudioHandler
@@ -14,6 +14,7 @@ class S3DataHandler(AudioHandler):
         self.__prefix = prefix if prefix else ""
         self.__format = format if format and format != "" else "wav"
         self.__s3_client = boto3.client('s3')
+        self.__logger = logging.getLogger("general")
         
     def base_name(self, audio: AudioData):
         """ Returns a file name for the given base name and format.

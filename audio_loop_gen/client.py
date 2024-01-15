@@ -12,8 +12,8 @@ MIN_JOBS:int = 5
 PERIODIC_JOB_GENERATION_INTERVAL_SEC:int = 600
 class LoopGenClient:
     def __init__(self, host: str, port: int, prompt_generator: PromptGenerator, store: AudioStore, max_jobs: int = 10):
-        assert(prompt_generator is not None)
-        assert(store is not None)
+        assert prompt_generator is not None
+        assert store is not None
         self.__host = host if host is not None else "localhost"
         self.__port = port if (port is not None and port > 0) else 8081
         self.__store = store
@@ -137,7 +137,7 @@ class LoopGenClient:
     async def __generate_jobs(self):
         if len(self.__jobs) < MIN_JOBS:
             batch_size = self.__max_jobs - len(self.__jobs)
-            jobs = self.__prompt_generator.generate(count=batch_size)
+            jobs = self.__prompt_generator.generate(max_count=batch_size)
             for job in jobs:
                 await self.send_job(job)
         # call from time to time to make sure an error in the main loop doesn't leave us without jobs   
@@ -149,10 +149,10 @@ class LoopGenClient:
             
 class DataReceiver:
     def __init__(self, uuid: str, checksum: str, size: int, logger: logging.Logger):
-        assert(uuid is not None)
-        assert(checksum is not None)
-        assert(size is not None and size > 0)
-        assert(logger is not None)
+        assert uuid is not None
+        assert checksum is not None
+        assert size is not None and size > 0
+        assert logger is not None
         
         self.__uuid = uuid
         self.__checksum = checksum

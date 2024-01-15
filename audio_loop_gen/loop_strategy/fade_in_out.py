@@ -22,8 +22,8 @@ class FadeInOut(LoopStrategy):
         """
         super().__init__(audio=audio, min_loop_duration=min_loop_duration)
 
-        assert(fade_duration is not None)
-        assert(fade_duration > 0)
+        assert fade_duration is not None
+        assert fade_duration > 0
         self.__fade_duration: int = min(
             fade_duration, self.audio.duration // 3) #don't allow fade duration to be more than 1/3 of the audio duration
 

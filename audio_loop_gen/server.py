@@ -24,8 +24,8 @@ class LoopGenJob:
     """ Wraps a LoopGenParams object with a UUID and a reference to the client connection that requested the job.
     """
     def __init__(self, params: LoopGenParams, connection: 'LoopGenClientConnection'):
-        assert(params is not None, "params is required")
-        assert(connection is not None, "connection is required")
+        assert params is not None, "params is required"
+        assert connection is not None, "connection is required"
         self.__uuid = uuid.uuid4()
         self.__params = params
         self.__connection = connection
@@ -46,9 +46,9 @@ class LoopGenClientConnection:
     """ Represents a client connected to the server. Handles sending and receiving messages to/from the client.
     """
     def __init__(self, websocket, task_queue: queue.Queue, logger):
-        assert(websocket is not None, "websocket is required")
-        assert(task_queue is not None, "task_queue is required")
-        assert(logger is not None, "logger is required")
+        assert websocket is not None, "websocket is required"
+        assert task_queue is not None, "task_queue is required"
+        assert logger is not None, "logger is required"
         self.__websocket: websockets.WebSocketServerProtocol = websocket
         self.__logger = logger
         self.__queue = task_queue
@@ -165,8 +165,8 @@ class LoopGeneratorServer:
         Raises:
             ValueError: If the port is not between 0 and 65535.
         """
-        assert(audiogen is not None, "audiogen is required")
-        assert(port is not None, "port is required")
+        assert audiogen is not None, "audiogen is required"
+        assert port is not None, "port is required"
         if port < 0 or port > 65535:
             raise ValueError("Invalid port number")
         

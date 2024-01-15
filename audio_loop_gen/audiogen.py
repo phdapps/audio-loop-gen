@@ -42,7 +42,7 @@ class AudioGenerator:
             "Generating music using prompt \"%s\" and seed %d...", prompt, seed)
 
         self.__model.set_generation_params(
-            duration=params.max_duration, top_k=params.top_k, top_p=params.top_p, temperature=params.temperature, cfg_coef=params.cfg_coef)
+            duration=params.max_duration, top_k=params.top_k, top_p=params.top_p, temperature=params.temperature, cfg_coef=params.cfg_coef, extend_stride=10)
 
         wav = self.__model.generate([prompt], progress=True)[0].cpu()
 

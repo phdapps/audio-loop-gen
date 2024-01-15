@@ -44,14 +44,14 @@ def do_loopgen(argv: list[str]):
     if args.prompt:
         # Generate the CLI prompt audio first before listening for more prompts
         params = LoopGenParams(prompt=args.prompt, bpm=args.bpm, max_duration=args.max_duration, min_duration=(
-            args.max_duration*1000)//2, seed=args.seed)
+            args.max_duration)//2, seed=args.seed)
         sr, audio_data = audiogen.generate(params)
         # don't loose more than 1/3 of the audio
         loopgen = LoopGenerator(AudioData(audio_data, sr), params)
         loop = loopgen.generate()
         file_name = args.file_name if args.file_name else dt.utcnow().strftime(
             f"%Y%m%d%H%M%S%f-{args.max_duration}s-{args.bpm}bpm")
-        export_audio(loop, path.join(args.dest_path, file_name), format="mp3")
+        export_audio(loop, path.join(args.dest_path, file_name), format="wav")
 
     if args.listen and args.listen > 0:
         # Start the websocket server
