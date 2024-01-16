@@ -15,7 +15,9 @@ def strip_space_and_quotes(text:str) -> str:
 class PromptGenerator(object):
     """ Base class for prompt generators.
     """
-    
+    def __init__(self, use_case:str = None):
+        self.use_case = use_case
+        
     async def generate(self, max_count: int = 1) -> list[LoopGenParams]:
         """ Generate generation params for the given number of loops.
 

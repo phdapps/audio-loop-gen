@@ -25,10 +25,12 @@ prompt:A simple and catchy melody that is easy to hum along to. A basic 4-chord 
 """}
 
 OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE = "Generate {count} sets of parameters for generating a melody."
+OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE_USE_CASE_EXTRA =  "The melody's use case will be \"{use_case}\" so adjust the prompt apropriately."
 
 TRIM_LINE_NUM_REGEX = r"^\d+\s+"
 class OpenAI(PromptGenerator):
-    def __init__(self, api_key: str, model_id: str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
+    def __init__(self, api_key: str, model_id: str = None, use_case:str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
+        super().__init__(use_case=use_case)
         if api_key is None:
             raise ValueError("Missing API key!")
 
@@ -54,8 +56,12 @@ class OpenAI(PromptGenerator):
         assert max_count is not None and max_count > 0
         if max_count < 1:
             max_count = 1
+            
+        message = OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE.format(count=max_count)
+        if self.use_case:
+            message += " " + OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE_USE_CASE_EXTRA.format(use_case=self.use_case)
         messages = [OPENAI_CHAT_COMPLETION_SYSTEM_MESSAGE, {
-            "role": "user", "content": OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE.format(count=max_count)}]
+            "role": "user", "content": message}]
 
         response = await self.__openai_client.chat.completions.create(
             model=self.__model_id,

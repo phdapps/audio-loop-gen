@@ -10,8 +10,9 @@ from .store import AudioStore
 TIMEOUT_JOB_CONFIRMATION_SEC:float = 10.0
 MIN_JOBS:int = 5
 PERIODIC_JOB_GENERATION_INTERVAL_SEC:int = 600
+
 class LoopGenClient:
-    def __init__(self, host: str, port: int, prompt_generator: PromptGenerator, store: AudioStore, max_jobs: int = 10):
+    def __init__(self, prompt_generator: PromptGenerator, store: AudioStore, host: str = "localhost", port: int = 8081, max_jobs: int = 10):
         assert prompt_generator is not None
         assert store is not None
         self.__host = host if host is not None else "localhost"
@@ -29,7 +30,10 @@ class LoopGenClient:
         self.__response_event: asyncio.Event = asyncio.Event()
         self.__request_lock: asyncio.Lock = asyncio.Lock()
 
-    async def start(self):
+    def start(self):
+        asyncio.run(self.__startup())
+        
+    async def __startup(self):
         try:
             server_uri = f"ws://{self.__host}:{self.__port}"
             self.__websocket = await websockets.connect(server_uri)
@@ -98,7 +102,7 @@ class LoopGenClient:
                     self.__response_event.set() # signal that the job request is done and another one can be sent
             elif response_type == 'success':
                 self.__logger.info(f"Success! UUID: {response['uuid']}, Checksum: {response['checksum']}")
-                self.__data_receiver = DataReceiver(uuid, self.__jobs[uuid], response['checksum'], response['size'], self.__logger)
+                self.__data_receiver = DataReceiver(uuid, job, response['checksum'], response['size'], self.__logger)
                 # No need to keep around and allow new jobs to be sent while the data is received
                 # @TODO May need to refactor if this is not practical anymore
                 self.__finish_job(uuid)
@@ -125,7 +129,7 @@ class LoopGenClient:
                 self.__logger.debug("Completed job %s", self.__data_receiver.uuid)
                 data = self.__data_receiver.data
                 audio = AudioData.deserialize(data)
-                self.__store.store(audio)
+                self.__store.store(audio, self.__data_receiver.job)
                 self.__data_receiver = None
         else:
             self.__logger.error("Received binary data without a succesful job")
@@ -139,7 +143,7 @@ class LoopGenClient:
             batch_size = self.__max_jobs - len(self.__jobs)
             jobs = self.__prompt_generator.generate(max_count=batch_size)
             for job in jobs:
-                await self.send_job(job)
+                await self.__send_job(job)
         # call from time to time to make sure an error in the main loop doesn't leave us without jobs   
         asyncio.ensure_future(self.__delayed_generate_jobs())
         
@@ -148,13 +152,14 @@ class LoopGenClient:
         await self.__generate_jobs()
             
 class DataReceiver:
-    def __init__(self, uuid: str, checksum: str, size: int, logger: logging.Logger):
+    def __init__(self, uuid: str, job: LoopGenParams, checksum: str, size: int, logger: logging.Logger):
         assert uuid is not None
         assert checksum is not None
         assert size is not None and size > 0
         assert logger is not None
         
         self.__uuid = uuid
+        self.__job = job
         self.__checksum = checksum
         self.__size = size
         self.__logger = logger
@@ -171,19 +176,14 @@ class DataReceiver:
         return self.__uuid
     
     @property
+    def job(self) -> LoopGenParams:
+        return self.__job
+    
+    @property
     def data(self) -> bytes:
         return bytes(self.__data)
     
     def receive(self, chunk: bytes):
-        """_summary_
-
-        Args:
-            chunk (bytes): _description_
-
-        Raises:
-            ValueError: _description_
-            ValueError: _description_
-        """
         chunk_size = len(chunk)
         if self.__received_size + chunk_size > self.__size:
             self.__status = -1

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import os
 import os.path as path
 from argparse import ArgumentParser
 from datetime import datetime as dt
@@ -11,7 +12,9 @@ from audio_loop_gen.loopgen import LoopGenerator
 from audio_loop_gen.util import export_audio, AudioData, LoopGenParams
 from audio_loop_gen.logging import setup_global_logging
 from audio_loop_gen.server import LoopGeneratorServer
-
+from audio_loop_gen.promptgen import Ollama, OpenAI, Manual
+from audio_loop_gen.store import AudioStore, AudioHandler, FileDataHandler, S3DataHandler
+from audio_loop_gen.client import LoopGenClient
 
 def loopgen_args_parser() -> ArgumentParser:
     parser = ArgumentParser(add_help=False)
@@ -64,30 +67,58 @@ def do_loopgen(argv: list[str]):
 def promptgen_args_parser() -> ArgumentParser:
     parser = ArgumentParser(add_help=False)
     parser.add_argument('--provider', type=str,
-                        choices=["ollama", "openai"], default="openai", help="The LLM provider to use for the prompt generation. 'ollama' requires running it locally!")
+                        choices=["openai", "ollama", "manual"], default="openai", help="The provider to use for the prompt generation. 'ollama' expects a locally running Ollama!")
     parser.add_argument("--model", type=str, default=None,
                         help="The name of the LLM model to use with the selected provider. If not specified, a default model will be used.")
+    parser.add_argument("--use_case", type=str, default=None, help="Extra use case details to send to the prompt generator to influence the type of melodies it would focus on.")
     parser.add_argument('--host', type=str, default="localhost",
                         help="Host to connect to for sending the prompts.")
-    parser.add_argument('--port', type=str, default="localhost",
-                        help="Host to connect to for sending the prompts.")
-    parser.add_argument('--save_path', type=str, default=".",
+    parser.add_argument('--port', type=int, default=8081,
+                        help="Port to connect to for sending the prompts.")
+    parser.add_argument('--save_path', type=str, default=None,
                         help="Local path where to save the audio files received from the server.")
     parser.add_argument('--save_s3', type=str, default=None,
                         help="S3 bucket name where to save the audio files received from the server. AWS credentials must be configured in environment variables or in a corresponding credentials file.")
     parser.add_argument('--save_prefix', type=str, default="",
                         help="Prefix for the saved filenames. For S3, it can start with a path prefix.")
-    parser.add_argument('--no_metadata', type=bool, default=False, help="Don't save a metadata file.")
+    parser.add_argument('--keep_metadata', type=bool, default=False, help="Save a metadata json file with the audio file.")
     parser.add_argument("--mode", type=str, help="promptgen")
     return parser
 
+def params_callback(prompt: str, bpm: int, **kwargs) -> LoopGenParams:
+    defaults = {
+        "max_duration": 66,
+        "min_duration": 40,
+        "seed": -1
+    }
+    defaults.update(kwargs) # override defaults with any additional params
+    return LoopGenParams(prompt=prompt, bpm=bpm, **defaults)
 
 def do_promptgen(argv: list[str]):
     parser = promptgen_args_parser()
     args = parser.parse_args(argv)
+    if args.provider == "ollama":
+        promptgen = Ollama(model_id=args.model, use_case=args.use_case, params_callback=params_callback)
+    elif args.provider == "openai":
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("Missing OPENAI_API_KEY environment variable!")
+        promptgen = OpenAI(api_key=api_key, model_id=args.model, use_case=args.use_case, params_callback=params_callback)
+    else:
+        promptgen = Manual(use_case=args.use_case, params_callback=params_callback)
 
-    pass
-
+    handlers:[AudioHandler] = []
+    
+    if args.save_s3 is None and args.save_path is None:
+        raise ValueError("Either --save_path or --save_s3 must be specified.")
+    if args.save_s3:
+        handlers.append(S3DataHandler(bucket=args.save_s3, prefix=args.save_prefix, format="mp3", keep_metadata=args.keep_metadata))
+    if args.save_path:
+        handlers.append(FileDataHandler(dest=args.save_path, prefix=args.save_prefix, format="mp3", keep_metadata=args.keep_metadata))
+    
+    audio_store = AudioStore(handlers=handlers)
+    client = LoopGenClient(promptgen, audio_store, host=args.host, port=args.port)
+    client.start()
 
 def get_parser_help(parser: ArgumentParser) -> str:
     old_stdout = sys.stdout
@@ -95,7 +126,6 @@ def get_parser_help(parser: ArgumentParser) -> str:
     parser.print_help()
     sys.stdout = old_stdout
     return temp_stdout.getvalue()
-
 
 def combine_help_messages(mode_parser: ArgumentParser, loopgen_parser: ArgumentParser, promptgen_parser: ArgumentParser) -> str:
     result = get_parser_help(mode_parser)
@@ -105,7 +135,6 @@ def combine_help_messages(mode_parser: ArgumentParser, loopgen_parser: ArgumentP
     result += get_parser_help(promptgen_parser)
     result += "\n"
     return result
-
 
 def main():
     parser = ArgumentParser(add_help=False)

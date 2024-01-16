@@ -25,9 +25,11 @@ Example line (make sure all keys like 'prompt:' and 'bpm:' are present! Don't in
 """}
 
 LLAMA_CHAT_USER_MESSAGE_TEMPLATE = "Generate {count} sets of parameters for generating a melody."
+LLAMA_CHAT_USER_MESSAGE_TEMPLATE_USE_CASE_EXTRA =  "The melody's use case will be \"{use_case}\" so adjust the prompt apropriately."
 
 class Ollama(PromptGenerator):
-    def __init__(self, model_id: str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
+    def __init__(self, model_id: str = None, use_case:str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
+        super().__init__(use_case=use_case)
         if not model_id:
             model_id = "mistral"
         self.__model_id = model_id
@@ -50,8 +52,12 @@ class Ollama(PromptGenerator):
         assert max_count is not None and max_count > 0
         if max_count < 1:
             max_count = 1
+            
+        message = LLAMA_CHAT_USER_MESSAGE_TEMPLATE.format(count=max_count)
+        if self.use_case:
+            message += " " + LLAMA_CHAT_USER_MESSAGE_TEMPLATE_USE_CASE_EXTRA.format(use_case=self.use_case)
         messages = [LLAMA_CHAT_SYSTEM_MESSAGE, {
-            "role": "user", "content": LLAMA_CHAT_USER_MESSAGE_TEMPLATE.format(count=max_count)}]
+            "role": "user", "content": message}]
 
         response = await self.__ollama_client.chat(
             model=self.__model_id,
