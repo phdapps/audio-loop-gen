@@ -178,12 +178,15 @@ class LoopGeneratorServer:
     def start(self):
         """Starts the server on the configured port. This method blocks until the server is stopped.
         """
+        self.__logger.info("Starting server...")
         asyncio.run(self.__run())
         
     async def __run(self):
+        
         # Start a thread to handle jobs from the queue
         threading.Thread(target=self.__job_worker, daemon=True).start()
         # Start the server
+        self.__logger.info("Starting server on port %d", self.__port)
         async with websockets.serve(self.__handle_client, "localhost", self.__port):
             await asyncio.Future()  # Run forever
             

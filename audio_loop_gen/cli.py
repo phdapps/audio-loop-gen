@@ -20,8 +20,8 @@ def loopgen_args_parser() -> ArgumentParser:
     parser = ArgumentParser(add_help=False)
     parser.add_argument('--model', type=str, default=None,
                         help="Model ID to use for the generation. If not specified, the default model will be used.")
-    parser.add_argument('--prompt', type=str,
-                        default="The prompt to use for the audio generation model.")
+    parser.add_argument('--prompt', type=str, default=None,
+                        help="The prompt to use for the audio generation model.")
     parser.add_argument('--bpm', type=int, default=60,
                         help="Beats per minute (bpm) to target in the generated audio from the --prompt argument.")
     parser.add_argument('--max_duration', type=int, default=33,
@@ -36,7 +36,6 @@ def loopgen_args_parser() -> ArgumentParser:
                         help="A websocket port to listen to for generation commads and send back progress updates and the generated audio data.")
     parser.add_argument("--mode", type=str, help="loopgen (optional)")
     return parser
-
 
 def do_loopgen(argv: list[str]):
     parser = loopgen_args_parser()
@@ -62,7 +61,6 @@ def do_loopgen(argv: list[str]):
         # Start the websocket server
         server = LoopGeneratorServer(audiogen, port=args.listen)
         server.start()
-
 
 def promptgen_args_parser() -> ArgumentParser:
     parser = ArgumentParser(add_help=False)

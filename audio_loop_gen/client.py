@@ -31,9 +31,9 @@ class LoopGenClient:
         self.__request_lock: asyncio.Lock = asyncio.Lock()
 
     def start(self):
-        asyncio.run(self.__startup())
+        asyncio.run(self.__run())
         
-    async def __startup(self):
+    async def __run(self):
         try:
             server_uri = f"ws://{self.__host}:{self.__port}"
             self.__websocket = await websockets.connect(server_uri)
