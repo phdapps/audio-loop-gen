@@ -77,6 +77,7 @@ def promptgen_args_parser() -> ArgumentParser:
                         help="S3 bucket name where to save the audio files received from the server. AWS credentials must be configured in environment variables or in a corresponding credentials file.")
     parser.add_argument('--save_prefix', type=str, default="",
                         help="Prefix for the saved filenames. For S3, it can start with a path prefix.")
+    parser.add_argument('--no_metadata', type=bool, default=False, help="Don't save a metadata file.")
     parser.add_argument("--mode", type=str, help="promptgen")
     return parser
 

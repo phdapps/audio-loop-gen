@@ -1,9 +1,9 @@
-import json
+import re
 from typing import Callable, Concatenate
 import openai
 import logging
 
-from .base import PromptGenerator
+from .base import PromptGenerator, trim_line
 from ..util import LoopGenParams
 
 OPENAI_CHAT_COMPLETION_SYSTEM_MESSAGE = {
@@ -26,21 +26,21 @@ prompt:A simple and catchy melody that is easy to hum along to. A basic 4-chord 
 
 OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE = "Generate {count} sets of parameters for generating a melody."
 
+TRIM_LINE_NUM_REGEX = r"^\d+\s+"
 class OpenAI(PromptGenerator):
     def __init__(self, api_key: str, model_id: str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
-        # Load the API key from an environment variable
         if api_key is None:
             raise ValueError("Missing API key!")
 
         if not model_id:
             model_id = "gpt-3.5-turbo-1106"
         self.__model_id = model_id
-        self.__openai_client = openai.OpenAI(api_key=api_key)
+        self.__openai_client = openai.AsyncOpenAI(api_key=api_key)
         self.__params_callback = params_callback if params_callback else lambda prompt, bpm, **kwargs: LoopGenParams(
             prompt=prompt, bpm=bpm, **kwargs)
         self.__logger = logging.getLogger("global")
 
-    def generate(self, max_count=1) -> list[LoopGenParams]:
+    async def generate(self, max_count=1) -> list[LoopGenParams]:
         """
         Query the OpenAI API with the given prompt.
         Args:
@@ -57,7 +57,7 @@ class OpenAI(PromptGenerator):
         messages = [OPENAI_CHAT_COMPLETION_SYSTEM_MESSAGE, {
             "role": "user", "content": OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE.format(count=max_count)}]
 
-        response = self.__openai_client.chat.completions.create(
+        response = await self.__openai_client.chat.completions.create(
             model=self.__model_id,
             messages=messages
         )
@@ -71,9 +71,10 @@ class OpenAI(PromptGenerator):
                 response_message = choice.message.content
                 if not response_message:
                     continue
-                # We aske the LLM for 1 line per params set
+                # We asked the LLM for 1 line per params set
                 lines = response_message.splitlines()
                 for line in lines:
+                    line = trim_line(line)
                     # each line should have the format: "prompt:<prompt>|bpm:<bpm>|other_key:other_value..."
                     try:
                         data = {}
