@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "audio_loop_gen"
 version = "0.1.0"
-description = "An ML-based audio loop generator"
+description = "An ML-based, fully automated, audio loop generation pipeline"
 readme = {file = "README.md"}
 authors = [{name = "Plamen H. Dragozov", email = "phd@phdapps.com"}]
 license = {file = "LICENSE"}

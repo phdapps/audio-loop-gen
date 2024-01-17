@@ -1,7 +1,12 @@
+""" Utility and helper functions for audio processing and loop generation.
+"""
+import hashlib
 import os
 import random
+from typing import Tuple
 import logging
 from logging.handlers import RotatingFileHandler
+import struct
 
 import numpy as np
 from numpy import ndarray
@@ -11,7 +16,11 @@ import librosa
 
 from audiocraft.data.audio import audio_write
 
+
 class AudioData:
+    """ Generic audio data container/wrapper used throughout the library.
+    """
+
     def __init__(self, audio_data: ndarray, sample_rate: int):
         self.__audio_data = audio_data
         self.__sample_rate = sample_rate
@@ -23,11 +32,11 @@ class AudioData:
             self.__length: int = len(audio_data)
         self.__duration: int = (
             self.__length * 1000) // sample_rate  # in milliseconds
-        
+
     @property
     def audio_data(self) -> ndarray:
         return self.__audio_data
-    
+
     @property
     def sample_rate(self) -> int:
         return self.__sample_rate
@@ -44,21 +53,167 @@ class AudioData:
     @property
     def duration(self):
         return self.__duration
-    
+
     @property
     def length(self):
         return self.__length
-    
+
     @property
     def is_stereo(self):
         return self.__is_stereo
+    
+    @staticmethod
+    def serialize(audio: 'AudioData') -> bytes:
+        num_channels = 2 if audio.is_stereo else 1
+
+        # Pack sample_rate and num_channels as integers (4 bytes each for int32)
+        header = struct.pack('ii', audio.sample_rate, num_channels)
+
+        # Convert audio_data to bytes
+        audio_data_bytes = audio.audio_data.tobytes()
+
+        # Concatenate the header and audio_data_bytes
+        return header + audio_data_bytes
+        
+    @staticmethod
+    def deserialize(data:bytes) -> 'AudioData':
+        # Unpack sample_rate and num_channels (first 8 bytes, 4 bytes each for int32)
+        sample_rate, num_channels = struct.unpack('ii', data[:8])
+        # Extract the audio_data bytes
+        audio_data_bytes = data[8:]
+
+        # Reconstruct the audio_data ndarray
+        # The dtype is assumed to be float32, and shape depends on num_channels
+        if num_channels == 1:
+            audio_data = np.frombuffer(audio_data_bytes, dtype=np.float32)
+        elif num_channels == 2:
+            num_samples_per_channel = len(audio_data_bytes) // (num_channels * np.dtype(np.float32).itemsize)
+            audio_data = np.frombuffer(audio_data_bytes, dtype=np.float32).reshape((2, num_samples_per_channel))
+            
+        audio_data = audio_data.copy() # writable copy
+        return AudioData(audio_data, sample_rate)
+
+class LazyLoggable(object):
+    def __init__(self, callable, *args, **kwargs):
+        self.__callable = callable
+        self.__args = args
+        self.__kwargs = kwargs
+
+    def __str__(self):
+        return self.__callable(*self.__args, **self.__kwargs)
+
+class AudioGenParams(object):
+    def __init__(self, 
+                 prompt: str, 
+                 max_duration: int = 60,
+                 bpm: int = 66, 
+                 seed: int = -1, 
+                 top_k: int = 250, 
+                 top_p: float = 0.0, 
+                 temperature: float = 1.0, 
+                 cfg_coef: int = 3):
+        self.__prompt = prompt
+        self.__max_duration = max_duration
+        self.__bpm = bpm
+        self.__seed = seed
+        self.__top_k = top_k
+        self.__top_p = top_p
+        self.__temperature = temperature
+        self.__cfg_coef = cfg_coef
+
+    @property
+    def prompt(self) -> str:
+        return self.__prompt
+    
+    @property
+    def max_duration(self) -> int:
+        return self.__max_duration
+    
+    @property
+    def bpm(self) -> int:
+        return self.__bpm
+    
+    @property
+    def seed(self) -> int:
+        return self.__seed
+    
+    @property
+    def top_k(self) -> int:
+        return self.__top_k
+    
+    @property
+    def top_p(self) -> float:
+        return self.__top_p
+    
+    @property
+    def temperature(self) -> float:
+        return self.__temperature
+    
+    @property
+    def cfg_coef(self) -> int:
+        return self.__cfg_coef
+    
+    def to_dict(self) -> dict:
+        return {
+            "prompt": self.prompt,
+            "max_duration": self.max_duration,
+            "bpm": self.bpm,
+            "seed": self.seed,
+            "top_k": self.top_k,
+            "top_p": self.top_p,
+            "temperature": self.temperature,
+            "cfg_coef": self.cfg_coef
+        }
+    
+    def __str__(self) -> str:
+        return str(self.to_dict())
+    
+class LoopGenParams(AudioGenParams):
+    def __init__(self, 
+                 prompt: str, 
+                 min_duration: int = -1,
+                 max_duration: int = 60,
+                 bpm: int = 66, 
+                 seed: int = -1, 
+                 top_k: int = 250, 
+                 top_p: float = 0.0, 
+                 temperature: float = 1.0, 
+                 cfg_coef: int = 3):
+        super().__init__(prompt, max_duration, bpm, seed, top_k, top_p, temperature, cfg_coef)
+        self.__min_duration = min_duration
+    
+    @property
+    def min_duration(self) -> int:
+        return self.__min_duration
+    
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data["min_duration"] = self.min_duration
+        return data
 
 def crossfade(audio_data: np.ndarray, sample_rate: int, crossfade_duration_ms: int) -> np.ndarray:
+    """ Applies a crossfade effect to the end of an audio segment.
+
+    The crossfade effect is applied to the last `crossfade_duration_ms` milliseconds of the audio segment.
+    It blends a faded out version of the end of the audio segment with the faded in version of its start, both of the same duration (crossfade_duration_ms).
+
+    Args:
+        audio_data (np.ndarray): The audio data to crossfade
+        sample_rate (int): The sample rate of the audio data.
+        crossfade_duration_ms (int): The duration of the crossfade effect in milliseconds.
+
+    Raises:
+        ValueError: If the crossfade duration is too long for the audio length.
+
+    Returns:
+        np.ndarray: The audio data with the crossfade effect applied.
+    """
     crossfade_samples = int(sample_rate * crossfade_duration_ms / 1000)
 
     if crossfade_samples >= audio_data.shape[1] // 2:
         # Crossfade duration is too long for the audio length
-        raise ValueError("Crossfade duration is too long for the length of the audio.")
+        raise ValueError(
+            "Crossfade duration is too long for the length of the audio.")
 
     # Create linear crossfade curves
     fade_out = np.linspace(1, 0, crossfade_samples, dtype=np.float32)
@@ -74,27 +229,56 @@ def crossfade(audio_data: np.ndarray, sample_rate: int, crossfade_duration_ms: i
     crossfaded_region = end_faded + start_faded
 
     # Construct the final audio
-    final_audio = np.concatenate([audio_data[:, :-crossfade_samples], crossfaded_region], axis=1)
+    final_audio = np.concatenate(
+        [audio_data[:, :-crossfade_samples], crossfaded_region], axis=1)
 
     return final_audio
 
+
 def fade_in(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int) -> np.ndarray:
+    """ Applies a fade-in effect to the start of an audio segment.
+
+    Args:
+        audio_data (np.ndarray): The audio data to fade in.
+        sample_rate (int): The sample rate of the audio data.
+        fade_duration_ms (int): The duration of the fade-in effect in milliseconds.
+
+    Returns:
+        np.ndarray: The audio data with the fade-in effect applied. It's a copy of the original audio data, which is not modified.
+    """
     fade_samples = int(sample_rate * fade_duration_ms / 1000)
     fade = np.linspace(0, 1, fade_samples, dtype=np.float32)
+    # Create a copy of the audio data
+
+    audio_data_faded = audio_data.copy()
 
     # Apply fade to the beginning of the loop
-    audio_data[:, :fade_samples] *= fade
+    audio_data_faded[:, :fade_samples] *= fade
 
-    return audio_data
+    return audio_data_faded
+
 
 def fade_out(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int) -> np.ndarray:
+    """ Applies a fade-out effect to the start of an audio segment.
+
+    Args:
+        audio_data (np.ndarray): The audio data to fade out.
+        sample_rate (int): The sample rate of the audio data.
+        fade_duration_ms (int): The duration of the fade-out effect in milliseconds.
+
+    Returns:
+        np.ndarray: The audio data with the fade-out effect applied. It's a copy of the original audio data, which is not modified.
+    """
     fade_samples = int(sample_rate * fade_duration_ms / 1000)
     fade = np.linspace(1, 0, fade_samples, dtype=np.float32)
 
-    # Apply fade to the end of the loop
-    audio_data[:, -fade_samples:] *= fade
+    audio_data_faded = audio_data.copy()
 
-    return audio_data
+    # Apply fade to the end of the loop
+    audio_data_faded[:, -fade_samples:] *= fade
+
+    return audio_data_faded
+
 
 def nearest_zero_crossing(audio_data: ndarray, start_index: int) -> int:
     """ Find the nearest zero-crossing around a given index. 
@@ -162,7 +346,19 @@ def spectral_similarity(audio_data: ndarray, sample_rate: int, start: int, end: 
     return similarity
 
 
-def find_similar_endpoints(audio_data: ndarray, sample_rate: int, frames: ndarray, threshold: float = 0.8, max_frames: int = 120) -> (int, int):
+def find_similar_endpoints(audio_data: ndarray, sample_rate: int, frames: ndarray, threshold: float = 0.8, max_frames: int = 120) -> Tuple[int, int]:
+    """ Find similar endpoints from both sides of an audio segment (mono!).
+
+    Args:
+        audio_data (ndarray): The audio data to search
+        sample_rate (int): The sample rate of the audio data.
+        frames (ndarray): The frames to search.
+        threshold (float, optional): The Similarity threshold to use when comparing. Defaults to 0.8.
+        max_frames (int, optional): Maximum number of frames to search around a point. Defaults to 120.
+
+    Returns:
+        Tuple[int, int]: The first 2 endpoints found, or (-1, -1) if none were found.
+    """
     for i in range(min(len(frames) - 1, max_frames)):
         start = librosa.frames_to_samples(frames[i])
         start = nearest_zero_crossing(audio_data=audio_data, start_index=start)
@@ -188,9 +384,16 @@ def find_similar_endpoints(audio_data: ndarray, sample_rate: int, frames: ndarra
             break
     return -1, -1
 
-def trim_silence(audio_data: np.ndarray, sample_rate: int, min_silence_ms: int = 1000, keep_silence_ms: int = 100, top_db: float = 60) -> np.ndarray:
-    """
-    Trims the silence from the start of an audio ndarray.
+
+def prune_silence(audio: AudioData, min_silence_ms: int = 1000, keep_silence_ms: int = 100, top_db: float = 60) -> AudioData:
+    """ Cleans up the silent parts of an audio segment.
+
+        The logic is like this:
+        1. Trims all the silence from the start and end of the audio 
+        2. Replace any internal silence intervals longer than `min_silence_ms` with silence of `keep_silence_ms` milliseconds.
+
+        The threshold for silence is determined by `top_db` which is the threshold (in decibels) below reference to consider as silence 
+        where `reference` is the maximum across the whole audio.
 
     Args:
         audio_data (np.ndarray): The audio data to trim, expected in float32 format with values ranging from -1.0 to 1.0.
@@ -204,13 +407,17 @@ def trim_silence(audio_data: np.ndarray, sample_rate: int, min_silence_ms: int =
     """
     if keep_silence_ms < 0 or min_silence_ms < 0 or keep_silence_ms >= min_silence_ms:
         raise ValueError("Invalid silence duration parameters.")
+
+    logger = logging.getLogger("global")
+    logger.debug("Pruning silence from audio. Initial duration: %dms", audio.duration)
     
     # Trim silence from the start and end of the audio
-    audio_data, _ = librosa.effects.trim(audio_data, top_db=top_db)
+    audio_data, _ = librosa.effects.trim(audio.audio_data, top_db=top_db)
+    logger.debug("Trimmed silence from the ends. New duration: %dms", (len(audio_data) if audio_data.ndim == 1 else audio_data.shape[1]) * 1000 // audio.sample_rate)
     
     # Convert silence duration from milliseconds to number of samples
-    min_silence = int(sample_rate * min_silence_ms / 1000)
-    keep_silence = int(sample_rate * keep_silence_ms / 1000)
+    min_silence = int(audio.sample_rate * min_silence_ms / 1000)
+    keep_silence = int(audio.sample_rate * keep_silence_ms / 1000)
 
     # Silence analysis will be performed on the mono audio data
     # while the trimming will be performed on the original audio data (stereo or mono)
@@ -220,25 +427,29 @@ def trim_silence(audio_data: np.ndarray, sample_rate: int, min_silence_ms: int =
         channels = 2
     else:
         audio_data_mono = audio_data
-    
+
     # Detect non-silent intervals
-    non_silent_intervals = librosa.effects.split(audio_data_mono, top_db=top_db)
+    non_silent_intervals = librosa.effects.split(
+        audio_data_mono, top_db=top_db)
     
     # filterout intervals shorter than min_silence
     filtered_intervals = []
     for start, end in non_silent_intervals:
+        logger.debug("Non-silent interval: %ds - %ds", start/audio.sample_rate, end/audio.sample_rate)
         # Update prev_end to the end of the last interval in filtered_intervals
         prev_end = filtered_intervals[-1][1] if filtered_intervals else 0
         if start > 0:
             if start - prev_end > min_silence:
+                logger.debug("Keeping interval: %ds - %ds", (start - keep_silence) / audio.sample_rate, end / audio.sample_rate)
                 # Add interval with silence wrapped around
                 filtered_intervals.append((start - keep_silence, end))
             else:
                 # Update the end of the last interval
+                logger.debug("Expanding previous non-silent interval end from %ds to %ds", filtered_intervals[-1][1] / audio.sample_rate, end / audio.sample_rate)
                 filtered_intervals[-1] = (filtered_intervals[-1][0], end)
         else:
             filtered_intervals.append((0, end))
-        
+
     # Initialize a list to hold processed audio for each channel
     processed_audio_channels = []
 
@@ -246,6 +457,7 @@ def trim_silence(audio_data: np.ndarray, sample_rate: int, min_silence_ms: int =
     processed_audio_1 = []
     processed_audio_2 = []
     for start, end in filtered_intervals:
+        logger.debug("Keeping interval %ds - %ds", start / audio.sample_rate, end / audio.sample_rate)
         # Append the non-silent audio chunk for this channel
         processed_audio_1.append(audio_data[0, start:end])
         if channels > 1:
@@ -253,23 +465,39 @@ def trim_silence(audio_data: np.ndarray, sample_rate: int, min_silence_ms: int =
     # Concatenate processed chunks and add to the channel list
     processed_audio_channels.append(np.concatenate(processed_audio_1, axis=0))
     if channels > 1:
-        processed_audio_channels.append(np.concatenate(processed_audio_2, axis=0))
+        processed_audio_channels.append(
+            np.concatenate(processed_audio_2, axis=0))
 
     # Stack processed channels back into multi-channel format
-    return np.stack(processed_audio_channels, axis=0)
+    return AudioData(np.stack(processed_audio_channels, axis=0), audio.sample_rate)
 
-def slice_and_blend(audio: AudioData, loop_start: int, loop_end: int, blend_samples:int = 100) -> AudioData:
+
+def slice_and_blend(audio: AudioData, loop_start: int, loop_end: int, blend_duration_ms: int = 10) -> AudioData:
+    """ Slice a loop from the audio data and apply some blending to avoid clicks.
+
+    Args:
+        audio (AudioData): The audio data to slice from.
+        loop_start (int): The start index of the cut.
+        loop_end (int): The end index of the cut.
+        blend_samples (int, optional): How long the blending interval is. Defaults to 100.
+
+    Returns:
+        AudioData: The sliced and blended audio data.
+    """
     # Slice the loop and apply blending
     # Quick blend to avoid clicks
     audio_data = audio.audio_data
+    blend_samples = int(audio.sample_rate * blend_duration_ms / 1000)
     lead_start = max(0, loop_start - blend_samples)
     if audio_data.ndim == 2 and audio_data.shape[0] == 2:
         audio_data = audio_data[:, loop_start:loop_end]
         lead = audio_data[:, lead_start:loop_start]
         num_lead = len(lead[0])
         if num_lead > 0:
-            audio_data[:, -num_lead:] *= np.linspace(1, 0, num_lead, dtype=np.float32)
-            audio_data[:, -num_lead:] += np.linspace(0, 1, num_lead, dtype=np.float32) * lead
+            audio_data[:, -
+                       num_lead:] *= np.linspace(1, 0, num_lead, dtype=np.float32)
+            audio_data[:, -num_lead:] += np.linspace(
+                0, 1, num_lead, dtype=np.float32) * lead
         else:
             audio_data = crossfade(audio_data, audio.sample_rate, 100)
     else:
@@ -277,12 +505,15 @@ def slice_and_blend(audio: AudioData, loop_start: int, loop_end: int, blend_samp
         lead = audio_data[lead_start: loop_start]
         num_lead = len(lead)
         if num_lead > 0:
-            audio_data[-num_lead:] *= np.linspace(1, 0, num_lead, dtype=np.float32)
-            audio_data[-num_lead:] += np.linspace(0, 1, num_lead, dtype=np.float32) * lead
+            audio_data[-num_lead:] *= np.linspace(1,
+                                                  0, num_lead, dtype=np.float32)
+            audio_data[-num_lead:] += np.linspace(0,
+                                                  1, num_lead, dtype=np.float32) * lead
         else:
             audio_data = crossfade(audio_data, audio.sample_rate, 100)
-            
+
     return AudioData(audio_data, audio.sample_rate)
+
 
 def export_audio(audio: AudioData, filename_base: str, format="wav"):
     """ Write the audio data to a WAV file.
@@ -293,10 +524,11 @@ def export_audio(audio: AudioData, filename_base: str, format="wav"):
             filename (str): The name of the file to write to (without extension, it will automatically add .wav).
     """
     wav = torch.from_numpy(audio.audio_data)
-    audio_write(filename_base, wav, audio.sample_rate, strategy="loudness", loudness_compressor=True, format=format)
+    audio_write(filename_base, wav, audio.sample_rate,
+                strategy="loudness", loudness_compressor=True, format=format)
 
-# From https://gist.github.com/gatheluck/c57e2a40e3122028ceaecc3cb0d152ac
 def set_all_seeds(seed):
+    # From https://gist.github.com/gatheluck/c57e2a40e3122028ceaecc3cb0d152ac
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
@@ -304,7 +536,10 @@ def set_all_seeds(seed):
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     
-def setup_global_logging(logs_file:str = "global.log", logs_path: str = os.path.join(".", "logs"), log_level: int = logging.INFO) -> logging.Logger:
+def calculate_checksum(data: bytes):
+    return hashlib.md5(data).hexdigest()
+
+def setup_logging(logs_file:str = "global.log", logs_path: str = os.path.join(".", "logs"), log_level: int = logging.INFO) -> logging.Logger:
     log_file = os.path.join(logs_path, logs_file)
 
     # Create log directory if it doesn't exist
@@ -313,7 +548,7 @@ def setup_global_logging(logs_file:str = "global.log", logs_path: str = os.path.
 
     # Create a logger
     logger = logging.getLogger('global')
-    logger.setLevel(logging.INFO if log_level < 0 else log_level)
+    logger.setLevel(logging.INFO if log_level is None or log_level < 0 else log_level)
 
     # Create a handler that writes log messages to a file, with log rotation
     handler = RotatingFileHandler(

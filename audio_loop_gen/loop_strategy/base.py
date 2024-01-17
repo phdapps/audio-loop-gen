@@ -2,7 +2,7 @@ import logging
 
 from ..util import AudioData
 
-class LoopStrategy:
+class LoopStrategy(object):
     BLEND_SAMPLES = 100
     """A LoopStrategy is used to generate a loop from a given audio segment. 
 
@@ -18,6 +18,10 @@ class LoopStrategy:
             audio (AudioData): The audio data to be used as the base of the generated loop.
             min_loop_duration (int, optional): Minimum duration of the loop that must be generated in ms. Defaults to 20000 (i.e. 20s).
         """
+        assert audio is not None
+        assert min_loop_duration is not None
+        assert min_loop_duration > 0
+        
         self.audio: AudioData = audio
         self.min_loop_duration: int = min_loop_duration
         self.logger = logging.getLogger("global")
