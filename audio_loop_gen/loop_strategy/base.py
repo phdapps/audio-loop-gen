@@ -4,6 +4,9 @@ from ..util import AudioData
 
 class LoopStrategy(object):
     BLEND_SAMPLES = 100
+    
+    strategy_id: str = None
+    
     """A LoopStrategy is used to generate a loop from a given audio segment. 
 
     It is an implementation of a specific algorithm which can generate a seamless loop from an audio input. 

@@ -1,11 +1,15 @@
 from .util import AudioData, LoopGenParams, prune_silence
-from .loop_strategy import LoopStrategy, TransientAligned, CrossFade, FadeInOut, BeatDetect
+from .loop_strategy import LoopStrategy, TransientAligned, CrossFade, BeatDetect
+# from .loop_strategy import FadeInOut
+
 
 class LoopGenerator(object):
     SILENCE_TOP_DB = 45
+
     def __init__(self, audio: AudioData, params: LoopGenParams):
         assert audio is not None
         assert params is not None
+        self.__params = params
         self.__min_loop_duration = params.min_duration * 1000
         self.__audio = self.__prepare_data(audio)
         self.__strategies = self.__prepare_strategies()
@@ -16,6 +20,7 @@ class LoopGenerator(object):
             if strategy.evaluate():
                 loop = strategy.create_loop()
                 loop = loop
+                self.__params.strategy_id = strategy.strategy_id
                 break
 
         return loop
@@ -29,14 +34,14 @@ class LoopGenerator(object):
         """
         Prepare the ordered list of strategies to be used for looping.
         """
-        strategies = []
-        # Add the strategies here in the order of preference
-        strategies.append(BeatDetect(
-            audio=self.__audio, min_loop_duration=self.__min_loop_duration))
-        strategies.append(TransientAligned(
-            audio=self.__audio, min_loop_duration=self.__min_loop_duration))
-        strategies.append(CrossFade(
-            audio=self.__audio, min_loop_duration=self.__min_loop_duration))
-        #strategies.append(FadeInOut(
-        #    audio=self.__audio, min_loop_duration=self.__min_loop_duration, fade_duration=500))
+        available_strategy_types: list[type] = [
+            BeatDetect, TransientAligned, CrossFade]
+        strategies: [LoopStrategy] = []
+        for stype in available_strategy_types:
+            if (not self.__params.strategy_id) or stype.strategy_id == self.__params.strategy_id:
+                strategies.append(stype(
+                    audio=self.__audio, min_loop_duration=self.__min_loop_duration))
+        # Doesn't produce very good/seamless results, but could be enabled as a fallback if ignoring a generated audio is not an option
+        # if not self.__params.strategy_id or FadeInOut.strategy_id == self.__params.strategy_id:
+        #     strategies.append(FadeInOut(audio=self.__audio, min_loop_duration=self.__min_loop_duration, fade_duration=500))
         return strategies

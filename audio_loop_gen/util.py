@@ -178,10 +178,12 @@ class LoopGenParams(AudioGenParams):
                  top_k: int = 250, 
                  top_p: float = 0.0, 
                  temperature: float = 1.0, 
-                 cfg_coef: int = 3):
+                 cfg_coef: int = 3,
+                 strategy_id:str = None):
         super().__init__(prompt, max_duration, bpm, seed, top_k, top_p, temperature, cfg_coef)
         self.__min_duration = min_duration
-    
+        self.strategy_id = strategy_id
+        
     @property
     def min_duration(self) -> int:
         return self.__min_duration
@@ -189,6 +191,7 @@ class LoopGenParams(AudioGenParams):
     def to_dict(self) -> dict:
         data = super().to_dict()
         data["min_duration"] = self.min_duration
+        data["strategy_id"] = self.strategy_id
         return data
 
 def crossfade(audio_data: np.ndarray, sample_rate: int, crossfade_duration_ms: int) -> np.ndarray:

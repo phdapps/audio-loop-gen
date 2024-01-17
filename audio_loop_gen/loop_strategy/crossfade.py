@@ -14,6 +14,8 @@ class CrossFade(LoopStrategy):
     # Threshold for spectral centroids variance to determine if the audio is ambient or textural
     SPECTRAL_CENTROIDS_THRESHOLD = 1000
 
+    strategy_id: str = "CrossFade"
+    
     def __init__(self, audio: AudioData, min_loop_duration: int = 20000):
         """
         Initialize the CrossFaded object.
@@ -58,7 +60,7 @@ class CrossFade(LoopStrategy):
         """
         if not self.evaluate():
             raise ValueError("Audio is not suitable for crossfade looping")
-        self.logger.debug("Useing CrossFade strategy for loop")
+        self.logger.debug("Using %s strategy for loop", type(self).strategy_id)
         loop = crossfade(self.audio.audio_data, self.audio.sample_rate, crossfade_duration_ms=400)
         loop = fade_out(loop, self.audio.sample_rate, fade_duration_ms=600)
         return AudioData(loop, self.audio.sample_rate)

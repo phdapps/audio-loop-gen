@@ -105,7 +105,6 @@ async def auto_loop(prompt_provider:PromptProvider, audio_store: AudioStore, aud
                     logger.error("Error while generating loop: %s", e, exc_info=True)
                 await asyncio.sleep(0.1)
         except KeyboardInterrupt:
-            print("Exiting...")
             break
 
 cli = typer.Typer()
