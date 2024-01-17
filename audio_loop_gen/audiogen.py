@@ -1,6 +1,6 @@
 import logging
 
-from typing import Tuple
+from typing import Tuple, Callable
 
 from numpy import ndarray
 import torch
@@ -14,14 +14,26 @@ class AudioGenerator:
     """ Generates an audio segment using one of Meta's Audiocraft:MusicGen models.
     """
 
-    def __init__(self, model_id: str = None, device: str = None):
+    def __init__(self, model_id: str = None, device: str = None, progress:bool=True):
         self.device = device or (
             "cuda" if torch.cuda.is_available() else "cpu")
+        self.__progress = progress
         self.__model = None
         self.__load(model_id)
         self.__logger = logging.getLogger("global")
 
     def generate(self, params: AudioGenParams) -> Tuple[int, ndarray]:
+        """ Generates an audio segment using the given parameters.
+
+        Args:
+            params (AudioGenParams): The parameters to use for generation.
+
+        Raises:
+            ValueError: If the parameters are invalid.
+
+        Returns:
+            Tuple[int, ndarray]: The sample rate and audio data.
+        """
         if not params:
             raise ValueError("Missing generation params")
         
@@ -44,12 +56,12 @@ class AudioGenerator:
         self.__model.set_generation_params(
             duration=params.max_duration, top_k=params.top_k, top_p=params.top_p, temperature=params.temperature, cfg_coef=params.cfg_coef, extend_stride=10)
 
-        wav = self.__model.generate([prompt], progress=True)[0].cpu()
+        wav = self.__model.generate([prompt], progress=self.__progress)[0].cpu()
 
         sample_rate = self.__model.sample_rate
         return sample_rate, wav.numpy()
     
-    def set_custom_progress_callback(self, callback):
+    def set_custom_progress_callback(self, callback:Callable[[int, int],None]):
         self.__model.set_custom_progress_callback(callback)
 
     def __load(self, model_id: str = None):

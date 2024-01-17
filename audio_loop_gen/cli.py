@@ -1,156 +1,205 @@
-#!/usr/bin/env python
-
-import sys
 import os
-import os.path as path
-from argparse import ArgumentParser
-from datetime import datetime as dt
-from io import StringIO
+from enum import Enum
+from typing_extensions import Annotated
+import asyncio
+import logging
 
-from audio_loop_gen.audiogen import AudioGenerator
-from audio_loop_gen.loopgen import LoopGenerator
-from audio_loop_gen.util import export_audio, AudioData, LoopGenParams
-from audio_loop_gen.logging import setup_global_logging
-from audio_loop_gen.server import LoopGeneratorServer
-from audio_loop_gen.promptgen import Ollama, OpenAI, Manual
-from audio_loop_gen.store import AudioStore, AudioHandler, FileDataHandler, S3DataHandler
-from audio_loop_gen.client import LoopGenClient
+import typer
 
-def loopgen_args_parser() -> ArgumentParser:
-    parser = ArgumentParser(add_help=False)
-    parser.add_argument('--model', type=str, default=None,
-                        help="Model ID to use for the generation. If not specified, the default model will be used.")
-    parser.add_argument('--prompt', type=str, default=None,
-                        help="The prompt to use for the audio generation model.")
-    parser.add_argument('--bpm', type=int, default=60,
-                        help="Beats per minute (bpm) to target in the generated audio from the --prompt argument.")
-    parser.add_argument('--max_duration', type=int, default=33,
-                        help="Maximum duration in seconds of the generated audio from the --prompt argument. The loop processing can reduce the final duration significantly!")
-    parser.add_argument('--dest_path', type=str, default=".",
-                        help="Path where to save the generated audio from the --prompt argument.")
-    parser.add_argument('--file_name', type=str, default="",
-                        help="File name to save the generated audio from the --prompt argument. If not specified, a name will be generated based on the current date and time.")
-    parser.add_argument('--seed', type=int, default=-1,
-                        help="Seed to use for the generated audio from the --prompt argument. If not specified, a random seed will be used.")
-    parser.add_argument('--listen', type=int, default=0,
-                        help="A websocket port to listen to for generation commads and send back progress updates and the generated audio data.")
-    parser.add_argument("--mode", type=str, help="loopgen (optional)")
-    return parser
+from .audiogen import AudioGenerator
+from .loopgen import LoopGenerator
+from .store import AudioHandler, AudioStore, FileDataHandler, S3DataHandler
+from .util import AudioData, LoopGenParams, setup_logging
+from .server import LoopGeneratorServer
+from .client import LoopGenClient
+from .promptgen import Ollama, OpenAI, Manual
 
-def do_loopgen(argv: list[str]):
-    parser = loopgen_args_parser()
-    args = parser.parse_args(argv)
-    if (not args.prompt) and (not args.listen or args.listen < 1):
-        raise ValueError("Either --prompt or --listen must be specified.")
+class PromptProvider(str, Enum):
+    manual = "manual"
+    openai = "openai"
+    ollama = "ollama"
+    
+def create_store(dest_path:str,
+    file_prefix:str,
+    s3_bucket:str,
+    s3_path:str,
+    keep_metadata:bool) -> AudioStore:
+    # need to store somewhere
+    if s3_bucket is None and dest_path is None:
+        print("No storage destination specified, using current directory!")
+        dest_path = "."
 
-    audiogen = AudioGenerator(model_id=args.model)
+    handlers:[AudioHandler] = []
+    if s3_bucket is not None:
+        prefix = ""
+        if s3_path:
+            prefix += s3_path
+            if not prefix.endswith("/"):
+                prefix += "/"
+        if file_prefix:
+            prefix += file_prefix
+            if not prefix.endswith("/"):
+                prefix += "/"
+        handlers.append(S3DataHandler(bucket=s3_bucket, prefix=prefix, format="mp3", keep_metadata=keep_metadata))
+    if dest_path:
+        handlers.append(FileDataHandler(dest=dest_path, prefix=file_prefix, format="mp3", keep_metadata=keep_metadata))
+    
+    return AudioStore(handlers=handlers)
 
-    if args.prompt:
-        # Generate the CLI prompt audio first before listening for more prompts
-        params = LoopGenParams(prompt=args.prompt, bpm=args.bpm, max_duration=args.max_duration,
-                               min_duration=args.max_duration//2, seed=args.seed)
-        sr, audio_data = audiogen.generate(params)
-        # don't loose more than 1/3 of the audio
-        loopgen = LoopGenerator(AudioData(audio_data, sr), params)
-        loop = loopgen.generate()
-        file_name = args.file_name if args.file_name else dt.utcnow().strftime(
-            f"%Y%m%d%H%M%S%f-{args.max_duration}s-{args.bpm}bpm")
-        export_audio(loop, path.join(args.dest_path, file_name), format="wav")
-
-    if args.listen and args.listen > 0:
-        # Start the websocket server
-        server = LoopGeneratorServer(audiogen, port=args.listen)
-        server.start()
-
-def promptgen_args_parser() -> ArgumentParser:
-    parser = ArgumentParser(add_help=False)
-    parser.add_argument('--provider', type=str,
-                        choices=["openai", "ollama", "manual"], default="openai", help="The provider to use for the prompt generation. 'ollama' expects a locally running Ollama!")
-    parser.add_argument("--model", type=str, default=None,
-                        help="The name of the LLM model to use with the selected provider. If not specified, a default model will be used.")
-    parser.add_argument("--use_case", type=str, default=None, help="Extra use case details to send to the prompt generator to influence the type of melodies it would focus on.")
-    parser.add_argument('--host', type=str, default="localhost",
-                        help="Host to connect to for sending the prompts.")
-    parser.add_argument('--port', type=int, default=8081,
-                        help="Port to connect to for sending the prompts.")
-    parser.add_argument('--save_path', type=str, default=None,
-                        help="Local path where to save the audio files received from the server.")
-    parser.add_argument('--save_s3', type=str, default=None,
-                        help="S3 bucket name where to save the audio files received from the server. AWS credentials must be configured in environment variables or in a corresponding credentials file.")
-    parser.add_argument('--save_prefix', type=str, default="",
-                        help="Prefix for the saved filenames. For S3, it can start with a path prefix.")
-    parser.add_argument('--keep_metadata', type=bool, default=False, help="Save a metadata json file with the audio file.")
-    parser.add_argument("--mode", type=str, help="promptgen")
-    return parser
-
-def params_callback(prompt: str, bpm: int, **kwargs) -> LoopGenParams:
-    defaults = {
-        "max_duration": 66,
-        "min_duration": 40,
-        "seed": -1
-    }
-    defaults.update(kwargs) # override defaults with any additional params
-    return LoopGenParams(prompt=prompt, bpm=bpm, **defaults)
-
-def do_promptgen(argv: list[str]):
-    parser = promptgen_args_parser()
-    args = parser.parse_args(argv)
-    if args.provider == "ollama":
-        promptgen = Ollama(model_id=args.model, use_case=args.use_case, params_callback=params_callback)
-    elif args.provider == "openai":
+def create_prompt_provider(prompt_provider:PromptProvider, llm_model:str, use_case:str, max_duration: int, min_duration: int) -> PromptProvider:
+    def params_callback(prompt:str, bpm:int, **kwargs) -> LoopGenParams:
+        _max_duration = kwargs.pop("max_duration", max_duration)
+        _min_duration = kwargs.pop("min_duration", min_duration)
+        return LoopGenParams(prompt=prompt, bpm=bpm, max_duration=_max_duration,
+                            min_duration=min(_max_duration // 3, _min_duration), **kwargs)
+        
+    if prompt_provider == "ollama":
+        promptgen = Ollama(model_id=llm_model, use_case=use_case, params_callback=params_callback)
+    elif prompt_provider == "openai":
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("Missing OPENAI_API_KEY environment variable!")
-        promptgen = OpenAI(api_key=api_key, model_id=args.model, use_case=args.use_case, params_callback=params_callback)
+        promptgen = OpenAI(api_key=api_key, model_id=llm_model, use_case=use_case, params_callback=params_callback)
     else:
-        promptgen = Manual(use_case=args.use_case, params_callback=params_callback)
+        promptgen = Manual(use_case=use_case, params_callback=params_callback)
+        
+    return promptgen
 
-    handlers:[AudioHandler] = []
+def create_audio_generator(audio_model:str) -> AudioGenerator:
+    audiogen = AudioGenerator(model_id=audio_model)
+    audiogen.set_custom_progress_callback(lambda _g, _t: print(f'.', end='', flush=True))
+    return audiogen
+
+async def full_loop(prompt_provider:PromptProvider, audio_store: AudioStore, audiogen: AudioGenerator):
+    logger = logging.getLogger("global")
+    while True:
+        try:
+            try:
+                params_list = await prompt_provider.generate(max_count=10)
+            except Exception as ex:
+                logger.error("Error while generating prompts: %s", ex, exc_info=True)
+                await asyncio.sleep(0.1)
+            for params in params_list:
+                try:
+                    print(f"Generating music, be patient...")
+                    sr, audio_data = audiogen.generate(params)
+                    loopgen = LoopGenerator(AudioData(audio_data, sr), params)
+                    loop = loopgen.generate()
+                    audio_store.store(loop, params)
+                    print("\n")
+                except Exception as e:
+                    logger.error("Error while generating loop: %s", e, exc_info=True)
+                await asyncio.sleep(0.1)
+        except KeyboardInterrupt:
+            break
+
+cli = typer.Typer()
+
+@cli.command(help="Generate a single audio loop reading all arguments from the command line. No LLM is used for the textual prompt generation.")
+def generate(
+    # audio generation options
+    prompt:Annotated[str, typer.Argument(help="The prompt to use for the audio generation model.")],
+    audio_model:Annotated[str, typer.Option(help="The name of the MusicGen model to use.")] = None,
+    bpm:Annotated[int, typer.Option(help="The beats per minute to target for the generated audio", min=24, max=240)] = 60,
+    max_duration:Annotated[int, typer.Option(help="The maximum duration in seconds of the generated loop", min=5, max=120)] = 66,
+    min_duration:Annotated[int, typer.Option(help="The minimum duration in seconds for the generated loop", min=5, max=120)] = 40,
+    seed:Annotated[int, typer.Option(help="The seed to use for the varios random generators to allow reproducability. -1 for random.")] = -1,
+    # storage options
+    dest_path:Annotated[str, typer.Option(help="Local path where to save the generated audio files.")] = None,
+    file_prefix:Annotated[str, typer.Option(help="Prefix to use for the generated audio file names.")] = None,
+    s3_bucket:Annotated[str, typer.Option(help="S3 bucket name where to save the generated audio files. AWS credentials must be configured in environment variables or in a corresponding credentials file.")] = None,
+    s3_path:Annotated[str, typer.Option(help="Bucket path/prefix to save the files to")] = None,
+    keep_metadata:Annotated[bool, typer.Option(help="Save a metadata json file with the audio file.", is_flag=True)]=False,
+    # logging options
+    log_level:Annotated[int, typer.Option(help="Log level as defined in the logging module (i.e. DEBUG=10, INFO=20 etc)")] = None):
     
-    if args.save_s3 is None and args.save_path is None:
-        raise ValueError("Either --save_path or --save_s3 must be specified.")
-    if args.save_s3:
-        handlers.append(S3DataHandler(bucket=args.save_s3, prefix=args.save_prefix, format="mp3", keep_metadata=args.keep_metadata))
-    if args.save_path:
-        handlers.append(FileDataHandler(dest=args.save_path, prefix=args.save_prefix, format="mp3", keep_metadata=args.keep_metadata))
+    setup_logging(log_level=log_level)
     
-    audio_store = AudioStore(handlers=handlers)
-    client = LoopGenClient(promptgen, audio_store, host=args.host, port=args.port)
+    audio_store = create_store(dest_path, file_prefix, s3_bucket, s3_path, keep_metadata)
+    
+    # generate an audio segment using the given parameters
+    audiogen = create_audio_generator(audio_model)
+    
+    params = LoopGenParams(prompt=prompt, bpm=bpm, max_duration=max_duration,
+                            min_duration=min(max_duration // 3, min_duration), seed=seed)
+    sr, audio_data = audiogen.generate(params)
+    
+    # trim it to form a loop
+    loopgen = LoopGenerator(AudioData(audio_data, sr), params)
+    loop = loopgen.generate()
+    
+    # save it
+    audio_store.store(loop, params)
+
+@cli.command(help="Runs the loop generation in full mode, using an LLM to generate the prompts and immediately pipe them to the audio generation module, eventually storing the results.")
+def full(
+    # prompt generation options
+    prompt_provider:Annotated[PromptProvider, typer.Option(help="The provider to use for the prompt generation. 'ollama' expects a locally running Ollama!")] = PromptProvider.openai,
+    llm_model:Annotated[str, typer.Option(help="The name of the LLM model to use with the selected provider. If not specified, a default model will be used.")] = None,
+    use_case:Annotated[str, typer.Option(help="Extra use case details to send to the prompt generator to influence the type of melodies it would focus on.")] = None,
+    # audio generation options
+    audio_model:Annotated[str, typer.Option(help="The name of the MusicGen model to use.")] = None,
+    max_duration:Annotated[int, typer.Option(help="The maximum duration in seconds of the generated loop", min=5, max=120)] = 66,
+    min_duration:Annotated[int, typer.Option(help="The minimum duration in seconds for the generated loop", min=5, max=120)] = 40,
+    # storage options
+    dest_path:Annotated[str, typer.Option(help="Local path where to save the generated audio files.")] = None,
+    file_prefix:Annotated[str, typer.Option(help="Prefix to use for the generated audio file names.")] = None,
+    s3_bucket:Annotated[str, typer.Option(help="S3 bucket name where to save the generated audio files. AWS credentials must be configured in environment variables or in a corresponding credentials file.")] = None,
+    s3_path:Annotated[str, typer.Option(help="Bucket path/prefix to save the files to")] = None,
+    keep_metadata:Annotated[bool, typer.Option(help="Save a metadata json file with the audio file.", is_flag=True)]=False,
+    # logging options
+    log_level:Annotated[int, typer.Option(help="Log level as defined in the logging module (i.e. DEBUG=10, INFO=20 etc)")] = None):
+    setup_logging(log_level=log_level)
+    
+    audio_store = create_store(dest_path, file_prefix, s3_bucket, s3_path, keep_metadata)
+    
+    prompt_provider = create_prompt_provider(prompt_provider, llm_model, use_case, max_duration, min_duration)
+    
+    audiogen = create_audio_generator(audio_model)
+    
+    asyncio.run(full_loop(prompt_provider, audio_store, audiogen))
+
+@cli.command(help="Runs only the audio generation module in server mode, listening for generative prompts and parameters on a websocket port. It will send back progress updates and the generated audio data on the same websocket connection.")
+def server(
+    # audio generation options
+    audio_model:Annotated[str, typer.Option(help="The name of the MusicGen model to use.")] = None,
+    # server options
+    port:Annotated[int, typer.Option(help="A websocket port to listen to for generation commads and send back progress updates and the generated audio data.", min=1, max=65535)] = 8081,
+    # logging options
+    log_level:Annotated[int, typer.Option(help="Log level as defined in the logging module (i.e. DEBUG=10, INFO=20 etc)")] = None):
+    
+    setup_logging(logs_file="server.logs", log_level=log_level)
+    
+    audiogen = AudioGenerator(audio_model, progress=False)
+    server = LoopGeneratorServer(audiogen, port=port)
+    server.start()
+
+@cli.command(help="Runs only the prompt generation module in client mode, connecting to a running server listening on a websocket port. It will send the generated prompts and parameters to the server, then receive and store the generated audio data.")
+def client(
+    # prompt generation options
+    prompt_provider:Annotated[PromptProvider, typer.Option(help="The provider to use for the prompt generation. 'ollama' expects a locally running Ollama!")] = PromptProvider.openai,
+    llm_model:Annotated[str, typer.Option(help="The name of the LLM model to use with the selected provider. If not specified, a default model will be used.")] = None,
+    use_case:Annotated[str, typer.Option(help="Extra use case details to send to the prompt generator to influence the type of melodies it would focus on.")] = None,
+    # audio generation options
+    max_duration:Annotated[int, typer.Option(help="The maximum duration in seconds of the generated loop", min=5, max=120)] = 66,
+    min_duration:Annotated[int, typer.Option(help="The minimum duration in seconds for the generated loop", min=5, max=120)] = 40,
+    # server options
+    host:Annotated[str, typer.Option(help="Host to connect to for sending the prompts.")] = "localhost",
+    port:Annotated[int, typer.Option(help="Port to connect to for sending the prompts.")] = 8081,
+    # storage options
+    dest_path:Annotated[str, typer.Option(help="Local path where to save the generated audio files.")] = None,
+    file_prefix:Annotated[str, typer.Option(help="Prefix to use for the generated audio file names.")] = None,
+    s3_bucket:Annotated[str, typer.Option(help="S3 bucket name where to save the generated audio files. AWS credentials must be configured in environment variables or in a corresponding credentials file.")] = None,
+    s3_path:Annotated[str, typer.Option(help="Bucket path/prefix to save the files to")] = None,
+    keep_metadata:Annotated[bool, typer.Option(help="Save a metadata json file with the audio file.", is_flag=True)]=False,
+    # logging options
+    log_level:Annotated[int, typer.Option(help="Log level as defined in the logging module (i.e. DEBUG=10, INFO=20 etc)")] = None):
+    
+    setup_logging(logs_file="client.logs", log_level=log_level)
+
+    audio_store = create_store(dest_path, file_prefix, s3_bucket, s3_path, keep_metadata)
+    
+    prompt_provider = create_prompt_provider(prompt_provider, llm_model, use_case, max_duration, min_duration)
+    
+    client = LoopGenClient(prompt_provider, audio_store, host=host, port=port)
     client.start()
-
-def get_parser_help(parser: ArgumentParser) -> str:
-    old_stdout = sys.stdout
-    sys.stdout = temp_stdout = StringIO()
-    parser.print_help()
-    sys.stdout = old_stdout
-    return temp_stdout.getvalue()
-
-def combine_help_messages(mode_parser: ArgumentParser, loopgen_parser: ArgumentParser, promptgen_parser: ArgumentParser) -> str:
-    result = get_parser_help(mode_parser)
-    result += "\n\n[mode = loopgen]\n"
-    result += get_parser_help(loopgen_parser)
-    result += "\n\n[mode = promptgen]\n"
-    result += get_parser_help(promptgen_parser)
-    result += "\n"
-    return result
-
-def main():
-    parser = ArgumentParser(add_help=False)
-    parser.add_argument("--mode", type=str,
-                        choices=["loopgen", "promptgen"], default="loopgen")
-    parser.add_argument("--help", action="store_true")
-    parser.add_argument('--log_level', type=int, default=-1,
-                        help="Log level as defined in the logging module (i.e. DEBUG=10, INFO=20 etc).")
-    args, remaining_argv = parser.parse_known_args()
-    if args.help:
-        help = combine_help_messages(
-            parser, loopgen_args_parser(), promptgen_args_parser())
-        print(help)
-        return
-
-    setup_global_logging(log_level=args.log_level)
-
-    if args.mode == "loopgen":
-        do_loopgen(argv=remaining_argv)
-    elif args.mode == "promptgen":
-        do_promptgen(argv=remaining_argv)

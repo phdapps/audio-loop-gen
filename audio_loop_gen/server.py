@@ -49,11 +49,18 @@ class LoopGenClientConnection:
         assert websocket is not None, "websocket is required"
         assert task_queue is not None, "task_queue is required"
         assert logger is not None, "logger is required"
+        
         self.__websocket: websockets.WebSocketServerProtocol = websocket
         self.__logger = logger
         self.__queue = task_queue
         self.__connected = False
         
+        self.__main_loop = asyncio.get_running_loop()
+    
+    @property
+    def connected(self) -> bool:
+        return self.__connected
+    
     async def listen(self):
         """ The main loop for the client. Listens for messages from the client and handles them appropriately.
         """
@@ -78,11 +85,11 @@ class LoopGenClientConnection:
         finally:
             self.__connected = False
             try:
-                self.__websocket.close()
+                await self.__websocket.close()
             except:
                 pass
             
-    async def progress(self, job: LoopGenJob, progress: float):
+    def progress(self, job: LoopGenJob, progress: float):
         """ Sends a progress update to the client.
         
         Args:
@@ -94,22 +101,23 @@ class LoopGenClientConnection:
             "uuid": job.uuid,
             "progress": progress
         })
-        await self.__send(msg)
+        self.__send(msg)
         
-    async def failure(self, job: LoopGenJob):
+    def failure(self, job: LoopGenJob):
         """ Sends a failure message to the client.
 
         Args:
             job (LoopGenJob): The job that failed.
         """
+        self.__logger.debug("Sending failure message for job %s", job.uuid)
         msg = json.dumps({
             "type": "error",
             "uuid": job.uuid,
             "reason": "FAIL"
         })
-        await self.__send(msg)
+        self.__send(msg)
         
-    async def success(self, job: LoopGenJob, audio: AudioData):
+    def success(self, job: LoopGenJob, audio: AudioData):
         """ Sends a success message to the client.
 
         Args:
@@ -124,24 +132,31 @@ class LoopGenClientConnection:
             "checksum": checksum,
             "size": len(data)
         })
-        await self.__send(msg)
-        
+        self.__logger.debug("Sending success for job %s", job.uuid)
+        self.__send(msg)
+        self.__logger.debug("Sending audio data for job %s in chunks", job.uuid)
         chunk_size = 1024
         for i in range(0, len(data), chunk_size):
             chunk = data[i:i+chunk_size]
-            await self.__send(chunk)
+            self.__send(chunk)
 
-    async def __send(self, message):
+    def __send(self, message):
         if not self.__connected:
             return
-        await self.__websocket.send(message)
+        # This method schedules the sending of a message on the main event loop.
+        if self.__connected:
+            asyncio.run_coroutine_threadsafe(self.__websocket.send(message), self.__main_loop)
+        else:
+            self.__logger.warning("WebSocket is not connected. Message not sent.")
         
     async def __accept(self, job: LoopGenJob):
         msg = json.dumps({
             "type": "accepted",
             "uuid": job.uuid
         })
-        await self.__send(msg)
+        if not self.__connected:
+            return
+        await self.__websocket.send(msg)
     
     def __create_job(self, json_message):
         if not "prompt" in json_message:
@@ -182,7 +197,6 @@ class LoopGeneratorServer:
         asyncio.run(self.__run())
         
     async def __run(self):
-        
         # Start a thread to handle jobs from the queue
         threading.Thread(target=self.__job_worker, daemon=True).start()
         # Start the server
@@ -191,14 +205,18 @@ class LoopGeneratorServer:
             await asyncio.Future()  # Run forever
             
     async def __handle_client(self, websocket: websockets.WebSocketServerProtocol):
-        client = LoopGenClientConnection(websocket, self.__queue, self.__logger)
-        await client.listen()
+        con = LoopGenClientConnection(websocket, self.__queue, self.__logger)
+        await con.listen()
         
     def __job_worker(self):
         while True:
             # Generate an audio loop using the provided parameters
             # and send it to the client
             job: LoopGenJob = self.__queue.get()
+            if job.connection is None or not job.connection.__connected:
+                self.__logger.error("Connection is closed. Job %s will not be processed.", job.uuid)
+                self.__queue.task_done()
+                continue
             
             # keep the client updated on the progress of the job
             def progress_callback(generated: int, total: int):

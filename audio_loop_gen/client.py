@@ -35,16 +35,29 @@ class LoopGenClient:
         
     async def __run(self):
         try:
+            print("Starting client...")
             server_uri = f"ws://{self.__host}:{self.__port}"
             self.__websocket = await websockets.connect(server_uri)
+            print("Connected to server at %s" % server_uri)
             self.__logger.info("Connected to server at %s", server_uri)
             self.__response_event.set()
             self.listen_for_responses_task = asyncio.create_task(self.__listen_for_responses())
             await self.__generate_jobs()
+            # Keep the client running indefinitely, similar to the server pattern
+            await asyncio.Future()  # Run forever
         except Exception as e:
             self.__logger.error(f"Connection failed: {e}")
+            # Ensure proper cleanup on error or cancellation
+            await self.__cleanup()
             raise e
 
+    async def __cleanup(self):
+        # Cancel ongoing tasks, close WebSocket connection, etc.
+        if self.listen_for_responses_task:
+            self.listen_for_responses_task.cancel()
+        if self.__websocket:
+            await self.__websocket.close()
+        
     async def __send_job(self, params:LoopGenParams):
         async with self.__request_lock:
             self.__response_event.clear()
@@ -53,7 +66,7 @@ class LoopGenClient:
             try:
                 if self.__websocket:
                     self.__pending_job = params
-                    await self.__websocket.send(json.dumps(params))
+                    await self.__websocket.send(json.dumps(params.to_dict()))
                     self.__logger.info("Request sent")
                     await asyncio.wait_for(self.__response_event.wait(), timeout=TIMEOUT_JOB_CONFIRMATION_SEC)
                 else:
@@ -68,15 +81,15 @@ class LoopGenClient:
             if self.__websocket:
                 async for message in self.__websocket:
                     if isinstance(message, str):
-                        self.__handle_message(json.loads(message))
+                        await self.__handle_message(json.loads(message))
                     else:
-                        self.__handle_binary_message(message)
+                        await self.__handle_binary_message(message)
             else:
                 self.__logger.error("Not connected to the server")
         except Exception as e:
             self.__logger.error(f"Error in listening for responses: {e}")
 
-    def __handle_message(self, response:dict):
+    async def __handle_message(self, response:dict):
         try:
             response_type = response.get('type')
             uuid = response.get('uuid')
@@ -105,19 +118,18 @@ class LoopGenClient:
                 self.__data_receiver = DataReceiver(uuid, job, response['checksum'], response['size'], self.__logger)
                 # No need to keep around and allow new jobs to be sent while the data is received
                 # @TODO May need to refactor if this is not practical anymore
-                self.__finish_job(uuid)
+                await self.__finish_job(uuid)
             elif response_type == 'progress':           
-                progress = response.get('progress') or 0
-                self.__logger.debug("Progress for job %s: %f\%", uuid, progress * 100)
+                pass # Ignore progress messages, but other clients can use this to show progress
             elif response_type == 'error':
                 self.__logger.error("Job %s failed: %s", uuid, response.get('reason'))
-                self.__finish_job(uuid)
+                await self.__finish_job(uuid)
             else:
                 self.__logger.warning(f"Unknown response type: {response} for job {uuid}")
         except Exception as e:
             self.__logger.error(f"Error handling server message {response}: {e}")
 
-    def __handle_binary_message(self, data):
+    async def __handle_binary_message(self, data):
         if self.__data_receiver is not None:
             try:
                 self.__data_receiver.receive(data)
@@ -134,14 +146,14 @@ class LoopGenClient:
         else:
             self.__logger.error("Received binary data without a succesful job")
             
-    def __finish_job(self, uuid:str):
+    async def __finish_job(self, uuid:str):
         del self.__jobs[uuid]
-        self.__generate_jobs()
+        await self.__generate_jobs()
             
     async def __generate_jobs(self):
         if len(self.__jobs) < MIN_JOBS:
             batch_size = self.__max_jobs - len(self.__jobs)
-            jobs = self.__prompt_generator.generate(max_count=batch_size)
+            jobs = await self.__prompt_generator.generate(max_count=batch_size)
             for job in jobs:
                 await self.__send_job(job)
         # call from time to time to make sure an error in the main loop doesn't leave us without jobs   
@@ -192,7 +204,6 @@ class DataReceiver:
         self.__data.extend(chunk)
         if self.__received_size == self.__size:
             self.__status = 1
-            self.__logger.debug("Finished. Received %d bytes", self.__received_size)
             if self.__checksum != calculate_checksum(self.__data):
                 self.__status = -1
                 raise ValueError(f"Checksum mismatch")

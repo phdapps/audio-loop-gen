@@ -10,3 +10,4 @@ ollama
 openai
 boto3
 uuid6
+typer[all]
