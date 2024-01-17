@@ -37,6 +37,6 @@ class LoopGenerator(object):
             audio=self.__audio, min_loop_duration=self.__min_loop_duration))
         strategies.append(CrossFade(
             audio=self.__audio, min_loop_duration=self.__min_loop_duration))
-        strategies.append(FadeInOut(
-            audio=self.__audio, min_loop_duration=self.__min_loop_duration, fade_duration=500))
+        #strategies.append(FadeInOut(
+        #    audio=self.__audio, min_loop_duration=self.__min_loop_duration, fade_duration=500))
         return strategies

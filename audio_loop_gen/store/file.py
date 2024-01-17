@@ -33,6 +33,6 @@ class FileDataHandler(AudioHandler):
         file_path = os.path.join(self.__dest, self.base_name(audio)) # no extension!
         export_audio(audio, file_path, self.__format)
         if self.keep_metadata:
-            metadata = self.metadata(params)
+            metadata = self.metadata(params, audio)
             with open(file_path + ".json", "w") as f:
                 f.write(metadata)

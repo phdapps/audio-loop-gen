@@ -42,7 +42,7 @@ class S3DataHandler(AudioHandler):
             key = f"{base_name}.{self.__format}"
             self.__s3_client.put_object(Bucket=self.__bucket, Key=key, Body=data)
             if self.keep_metadata:
-                metadata = self.metadata(params)
+                metadata = self.metadata(params, audio)
                 key = f"{base_name}.json"
                 self.__s3_client.put_object(Bucket=self.__bucket, Key=key, Body=metadata)
         finally:

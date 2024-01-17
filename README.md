@@ -80,6 +80,8 @@ Examples:
         --min-duration                           INTEGER RANGE [5<=x<=120]   The minimum duration in seconds for the generated loop [default: 40]
         
         --seed                                   INTEGER                     The seed to use for the varios random generators to allow reproducability. -1 for random. [default: -1]
+
+        --save-format                           [flac|mp3|ogg|wav]           The format to use when exporting the generated audio file. [default: mp3]
         
         --dest-path                              TEXT                        Local path where to save the generated audio files. [default: None]
         
@@ -120,6 +122,8 @@ Examples:
          --max-duration                             INTEGER RANGE [5<=x<=120]  The maximum duration in seconds of the generated loop [default: 66]
          
          --min-duration                             INTEGER RANGE [5<=x<=120]  The minimum duration in seconds for the generated loop [default: 40]
+
+         --save-format                             [flac|mp3|ogg|wav]          The format to use when exporting the generated audio file. [default: mp3]
          
          --dest-path                                TEXT                       Local path where to save the generated audio files. [default: None]
          

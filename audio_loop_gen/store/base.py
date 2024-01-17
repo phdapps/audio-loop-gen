@@ -36,10 +36,17 @@ class AudioHandler(object):
         return dt.utcnow().strftime(
             f"{uuid_str}_{'stereo' if audio.is_stereo else 'mono'}_{audio.duration}ms")
         
-    def metadata(self, params: LoopGenParams) -> str:
+    def metadata(self, params: LoopGenParams, audio: AudioData) -> str:
         """ Returns a dictionary of metadata to store along with the audio.
         """
-        return json.dumps(params.to_dict())
+        data = {
+            "params": params.to_dict(),
+            "duration": audio.duration,
+            "sample_rate": audio.sample_rate,
+            "is_stereo": audio.is_stereo
+        }
+            
+        return json.dumps(data)
     
     def handle(self, audio: AudioData, params:LoopGenParams):
         """ The specific logic implementation to handle the given audio.
