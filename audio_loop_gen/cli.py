@@ -10,8 +10,6 @@ from .audiogen import AudioGenerator
 from .loopgen import LoopGenerator
 from .store import AudioHandler, AudioStore, FileDataHandler, S3DataHandler
 from .util import AudioData, LoopGenParams, setup_logging
-from .server import LoopGeneratorServer
-from .client import LoopGenClient
 from .promptgen import Ollama, OpenAI, Manual
 
 class PromptProvider(str, Enum):
@@ -162,48 +160,3 @@ def full(
     audiogen = create_audio_generator(audio_model)
     
     asyncio.run(full_loop(prompt_provider, audio_store, audiogen))
-
-@cli.command(help="Runs only the audio generation module in server mode, listening for generative prompts and parameters on a websocket port. It will send back progress updates and the generated audio data on the same websocket connection.")
-def server(
-    # audio generation options
-    audio_model:Annotated[str, typer.Option(help="The name of the MusicGen model to use.")] = None,
-    # server options
-    port:Annotated[int, typer.Option(help="A websocket port to listen to for generation commads and send back progress updates and the generated audio data.", min=1, max=65535)] = 8081,
-    # logging options
-    log_level:Annotated[int, typer.Option(help="Log level as defined in the logging module (i.e. DEBUG=10, INFO=20 etc)")] = None):
-    
-    setup_logging(logs_file="server.logs", log_level=log_level)
-    
-    audiogen = create_audio_generator(audio_model)
-    server = LoopGeneratorServer(audiogen, port=port)
-    server.start()
-
-@cli.command(help="Runs only the prompt generation module in client mode, connecting to a running server listening on a websocket port. It will send the generated prompts and parameters to the server, then receive and store the generated audio data.")
-def client(
-    # prompt generation options
-    prompt_provider:Annotated[PromptProvider, typer.Option(help="The provider to use for the prompt generation. 'ollama' expects a locally running Ollama!")] = PromptProvider.openai,
-    llm_model:Annotated[str, typer.Option(help="The name of the LLM model to use with the selected provider. If not specified, a default model will be used.")] = None,
-    use_case:Annotated[str, typer.Option(help="Extra use case details to send to the prompt generator to influence the type of melodies it would focus on.")] = None,
-    # audio generation options
-    max_duration:Annotated[int, typer.Option(help="The maximum duration in seconds of the generated loop", min=5, max=120)] = 66,
-    min_duration:Annotated[int, typer.Option(help="The minimum duration in seconds for the generated loop", min=5, max=120)] = 40,
-    # server options
-    host:Annotated[str, typer.Option(help="Host to connect to for sending the prompts.")] = "localhost",
-    port:Annotated[int, typer.Option(help="Port to connect to for sending the prompts.")] = 8081,
-    # storage options
-    dest_path:Annotated[str, typer.Option(help="Local path where to save the generated audio files.")] = None,
-    file_prefix:Annotated[str, typer.Option(help="Prefix to use for the generated audio file names.")] = None,
-    s3_bucket:Annotated[str, typer.Option(help="S3 bucket name where to save the generated audio files. AWS credentials must be configured in environment variables or in a corresponding credentials file.")] = None,
-    s3_path:Annotated[str, typer.Option(help="Bucket path/prefix to save the files to")] = None,
-    keep_metadata:Annotated[bool, typer.Option(help="Save a metadata json file with the audio file.", is_flag=True)]=False,
-    # logging options
-    log_level:Annotated[int, typer.Option(help="Log level as defined in the logging module (i.e. DEBUG=10, INFO=20 etc)")] = None):
-    
-    setup_logging(logs_file="client.logs", log_level=log_level)
-
-    audio_store = create_store(dest_path, file_prefix, s3_bucket, s3_path, keep_metadata)
-    
-    prompt_provider = create_prompt_provider(prompt_provider, llm_model, use_case, max_duration, min_duration)
-    
-    client = LoopGenClient(prompt_provider, audio_store, host=host, port=port)
-    client.start()
