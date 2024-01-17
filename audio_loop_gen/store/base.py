@@ -19,7 +19,7 @@ class AudioStore(object):
         for handler in self.__handlers:
             try:
                 self.__logger.debug("Storing audio with handler %s", handler)
-                handler.handle(audio)
+                handler.handle(audio, params)
             except Exception as e:
                 self.__logger.error("Error storing audio with handler %s: %s", handler, e)
  
