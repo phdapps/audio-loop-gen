@@ -67,7 +67,11 @@ def create_prompt_provider(prompt_provider:PromptProvider, llm_model:str, use_ca
 
 def create_audio_generator(audio_model:str) -> AudioGenerator:
     audiogen = AudioGenerator(model_id=audio_model)
-    audiogen.set_custom_progress_callback(lambda _g, _t: print(f'.', end='', flush=True))
+    def progress_callback(generated, total):
+        step = total // 20
+        if step > 0 and generated % step == 0:
+            print(f'.', end='', flush=True)
+    audiogen.set_custom_progress_callback(progress_callback)
     return audiogen
 
 async def full_loop(prompt_provider:PromptProvider, audio_store: AudioStore, audiogen: AudioGenerator):
@@ -170,7 +174,7 @@ def server(
     
     setup_logging(logs_file="server.logs", log_level=log_level)
     
-    audiogen = AudioGenerator(audio_model, progress=False)
+    audiogen = create_audio_generator(audio_model)
     server = LoopGeneratorServer(audiogen, port=port)
     server.start()
 

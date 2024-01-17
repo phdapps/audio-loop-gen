@@ -10,7 +10,7 @@ from .store import AudioStore
 TIMEOUT_JOB_CONFIRMATION_SEC:float = 10.0
 MIN_JOBS:int = 5
 PERIODIC_JOB_GENERATION_INTERVAL_SEC:int = 600
-
+PING_INTERVAL = 10
 class LoopGenClient:
     def __init__(self, prompt_generator: PromptGenerator, store: AudioStore, host: str = "localhost", port: int = 8081, max_jobs: int = 10):
         assert prompt_generator is not None
@@ -37,11 +37,12 @@ class LoopGenClient:
         try:
             print("Starting client...")
             server_uri = f"ws://{self.__host}:{self.__port}"
-            self.__websocket = await websockets.connect(server_uri)
+            self.__websocket = await websockets.connect(server_uri, ping_timeout=60)
             print("Connected to server at %s" % server_uri)
             self.__logger.info("Connected to server at %s", server_uri)
             self.__response_event.set()
             self.listen_for_responses_task = asyncio.create_task(self.__listen_for_responses())
+            self.send_pings_task = asyncio.create_task(self.__send_ping())
             await self.__generate_jobs()
             # Keep the client running indefinitely, similar to the server pattern
             await asyncio.Future()  # Run forever
@@ -55,8 +56,22 @@ class LoopGenClient:
         # Cancel ongoing tasks, close WebSocket connection, etc.
         if self.listen_for_responses_task:
             self.listen_for_responses_task.cancel()
+        if self.send_pings_task:
+            self.send_pings_task.cancel()
         if self.__websocket:
             await self.__websocket.close()
+            
+    async def __send_ping(self):
+        while True:
+            if self.__websocket and not self.__websocket.closed:
+                try:
+                    await self.__websocket.ping()
+                    await asyncio.sleep(PING_INTERVAL)
+                except Exception as e:
+                    self.__logger.error(f"Error sending ping: {e}")
+                    break
+            else:
+                await asyncio.sleep(PING_INTERVAL)
         
     async def __send_job(self, params:LoopGenParams):
         async with self.__request_lock:
@@ -80,10 +95,13 @@ class LoopGenClient:
         try:
             if self.__websocket:
                 async for message in self.__websocket:
-                    if isinstance(message, str):
-                        await self.__handle_message(json.loads(message))
-                    else:
-                        await self.__handle_binary_message(message)
+                    try:
+                        if isinstance(message, str):
+                            await self.__handle_message(json.loads(message))
+                        else:
+                            await self.__handle_binary_message(message)
+                    except Exception as e:
+                        self.__logger.error(f"Error handling server message {message}: {e}")
             else:
                 self.__logger.error("Not connected to the server")
         except Exception as e:
@@ -119,8 +137,8 @@ class LoopGenClient:
                 # No need to keep around and allow new jobs to be sent while the data is received
                 # @TODO May need to refactor if this is not practical anymore
                 await self.__finish_job(uuid)
-            elif response_type == 'progress':           
-                pass # Ignore progress messages, but other clients can use this to show progress
+            elif response_type == 'progress':     
+                print(".", end="", flush=True)
             elif response_type == 'error':
                 self.__logger.error("Job %s failed: %s", uuid, response.get('reason'))
                 await self.__finish_job(uuid)

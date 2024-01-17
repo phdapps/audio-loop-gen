@@ -25,7 +25,7 @@ prompt:A simple and catchy melody that is easy to hum along to. A basic 4-chord 
 """}
 
 OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE = "Generate {count} sets of parameters for generating a melody."
-OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE_USE_CASE_EXTRA =  "The melody's use case will be \"{use_case}\" so adjust the prompt apropriately."
+OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE_USE_CASE_EXTRA =  "The melody's use case will be \"{use_case}\" so adjust the prompt apropriately but still keep it varied and unique."
 
 TRIM_LINE_NUM_REGEX = r"^\d+\s+"
 class OpenAI(PromptGenerator):

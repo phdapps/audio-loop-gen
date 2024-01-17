@@ -79,7 +79,6 @@ class AudioData:
     def deserialize(data:bytes) -> 'AudioData':
         # Unpack sample_rate and num_channels (first 8 bytes, 4 bytes each for int32)
         sample_rate, num_channels = struct.unpack('ii', data[:8])
-        print(sample_rate, num_channels)
         # Extract the audio_data bytes
         audio_data_bytes = data[8:]
 
@@ -88,7 +87,8 @@ class AudioData:
         if num_channels == 1:
             audio_data = np.frombuffer(audio_data_bytes, dtype=np.float32)
         elif num_channels == 2:
-            audio_data = np.frombuffer(audio_data_bytes, dtype=np.float32).reshape(-1, 2).T
+            num_samples_per_channel = len(audio_data_bytes) // (num_channels * np.dtype(np.float32).itemsize)
+            audio_data = np.frombuffer(audio_data_bytes, dtype=np.float32).reshape((2, num_samples_per_channel))
             
         audio_data = audio_data.copy() # writable copy
         return AudioData(audio_data, sample_rate)

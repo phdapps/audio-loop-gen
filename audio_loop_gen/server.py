@@ -82,6 +82,10 @@ class LoopGenClientConnection:
                 except queue.Full as e:
                     await self.__send(FULL_MESSAGE)
                     continue
+        except websockets.ConnectionClosedError:
+            self.__logger.info("Connection closed")
+        except Exception as e:
+            self.__logger.error("Error listening for messages: %s", str(e))
         finally:
             self.__connected = False
             try:
@@ -201,7 +205,8 @@ class LoopGeneratorServer:
         threading.Thread(target=self.__job_worker, daemon=True).start()
         # Start the server
         self.__logger.info("Starting server on port %d", self.__port)
-        async with websockets.serve(self.__handle_client, "localhost", self.__port):
+        
+        async with websockets.serve(self.__handle_client, "localhost", self.__port, ping_timeout=60):
             await asyncio.Future()  # Run forever
             
     async def __handle_client(self, websocket: websockets.WebSocketServerProtocol):
@@ -213,23 +218,27 @@ class LoopGeneratorServer:
             # Generate an audio loop using the provided parameters
             # and send it to the client
             job: LoopGenJob = self.__queue.get()
-            if job.connection is None or not job.connection.__connected:
+            if job.connection is None or not job.connection.connected:
                 self.__logger.error("Connection is closed. Job %s will not be processed.", job.uuid)
                 self.__queue.task_done()
                 continue
             
             # keep the client updated on the progress of the job
             def progress_callback(generated: int, total: int):
-                job.connection.progress(job, generated/total)
-                print(f'{generated: 6d} / {total: 6d}', end='\r')
+                step = total // 20
+                if step > 0 and generated % step == 0:
+                    job.connection.progress(job, generated/total)
+                    print(f'.', end='', flush=True)
                 
             self.__audiogen.set_custom_progress_callback(progress_callback)
                 
-            try:    
+            try:
+                print("\nGenerating loop:")
                 sr, audio_data = self.__audiogen.generate(job.params)
                 # don't loose more than 1/3 of the audio
                 loopgen = LoopGenerator(AudioData(audio_data, sr), job.params)
                 loop = loopgen.generate()
+                
                 job.connection.success(job, loop)
             except Exception as e:
                 self.__logger.error("Error generating loop: %s", str(e))

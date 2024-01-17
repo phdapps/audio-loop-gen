@@ -25,7 +25,7 @@ Example line (make sure all keys like 'prompt:' and 'bpm:' are present! Don't in
 """}
 
 LLAMA_CHAT_USER_MESSAGE_TEMPLATE = "Generate {count} sets of parameters for generating a melody."
-LLAMA_CHAT_USER_MESSAGE_TEMPLATE_USE_CASE_EXTRA =  "The melody's use case will be \"{use_case}\" so adjust the prompt apropriately."
+LLAMA_CHAT_USER_MESSAGE_TEMPLATE_USE_CASE_EXTRA =  "The melody's use case will be \"{use_case}\" so adjust the prompt apropriately but still keep it varied and unique."
 
 class Ollama(PromptGenerator):
     def __init__(self, model_id: str = None, use_case:str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
