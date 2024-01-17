@@ -72,7 +72,7 @@ def create_audio_generator(audio_model:str) -> AudioGenerator:
     audiogen.set_custom_progress_callback(progress_callback)
     return audiogen
 
-async def full_loop(prompt_provider:PromptProvider, audio_store: AudioStore, audiogen: AudioGenerator):
+async def auto_loop(prompt_provider:PromptProvider, audio_store: AudioStore, audiogen: AudioGenerator):
     logger = logging.getLogger("global")
     while True:
         try:
@@ -133,8 +133,8 @@ def generate(
     # save it
     audio_store.store(loop, params)
 
-@cli.command(help="Runs the loop generation in full mode, using an LLM to generate the prompts and immediately pipe them to the audio generation module, eventually storing the results.")
-def full(
+@cli.command(help="Runs the loop generation in auto mode, using an LLM to generate the prompts and immediately pipe them to the audio generation module, eventually storing the results.")
+def auto(
     # prompt generation options
     prompt_provider:Annotated[PromptProvider, typer.Option(help="The provider to use for the prompt generation. 'ollama' expects a locally running Ollama!")] = PromptProvider.openai,
     llm_model:Annotated[str, typer.Option(help="The name of the LLM model to use with the selected provider. If not specified, a default model will be used.")] = None,
@@ -159,4 +159,4 @@ def full(
     
     audiogen = create_audio_generator(audio_model)
     
-    asyncio.run(full_loop(prompt_provider, audio_store, audiogen))
+    asyncio.run(auto_loop(prompt_provider, audio_store, audiogen))
