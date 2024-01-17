@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <head>
+    <meta charset="utf-8" />
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <title>Play Local Audio Loop</title>
+    <style>
+      #audioFile {
+        width: 480px;
+      }
+      #progressBar {
+        width: 480px;
+      }
+    </style>
+    <script src='main.js'></script>
+  </head>
+  <body>
+    <h2>Select and Play an Audio Loop</h2>
+
+    <!-- File input for selecting an audio file -->
+    <div>
+      <div>
+        <input
+          title="Audio Player"
+          type="file"
+          id="audioFile"
+          accept="audio/*"
+        />
+      </div>
+      <div>
+        <progress id="progressBar" value="0" max="100"></progress>
+        <!-- Pause/Resume button -->
+        <button id="pauseResumeBtn" disabled>Pause</button>
+      </div>
+    </div>
+  </body>
+</html>

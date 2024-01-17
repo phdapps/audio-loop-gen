@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>audio_loop_gen Demo</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' type='text/css' media='screen' href='main.css'>
+    <script src='main.js'></script>
+</head>
+<body>
+    <ul id="melodies">
+        <li class="melodyGroup" id="group1">
+            <ul>
+                <li class="groupDetails">
+                    <h3>Game Melodies</h3>
+                    <div class="command">
+                        python run.py auto --prompt-provider=ollama --keep-metadata --use-case "Background music for levels in an RPG." --dest-path game-music --min-durati
+    on 60 --max-duration 80 --keep-metadata
+                    </div>
+                </li>
+                <li class="melodyRow" id="melody1" data-url="music/games/1.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody2" data-url="music/games/2.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody3" data-url="music/games/3.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody4" data-url="music/games/4.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+            </ul>
+        </li>
+
+        <li class="melodyGroup" id="group2">
+            <ul>
+                <li class="groupDetails">
+                    <h3>Video Backgroun Music</h3>
+                    <div class="command">
+                        python run.py auto --prompt-provider=ollama --keep-metadata --use-case "Background music for a YouTube video." --dest-path game-music --min-durati
+    on 60 --max-duration 80 --keep-metadata
+                    </div>
+                </li>
+                <li class="melodyRow" id="melody5" data-url="music/video/1.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody6" data-url="music/video/2.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody7" data-url="music/video/3.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody8" data-url="music/video/4.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+            </ul>
+        </li>
+
+        <li class="melodyGroup" id="group3">
+            <ul>
+                <li class="groupDetails">
+                    <h3>Game Melodies</h3>
+                    <div class="command">
+                        python run.py auto --prompt-provider=ollama --keep-metadata --use-case "Background music for levels in an RPG." --dest-path game-music --min-durati
+    on 60 --max-duration 80 --keep-metadata
+                    </div>
+                </li>
+                <li class="melodyRow" id="melody1" data-url="music/games/1.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody2" data-url="music/games/2.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody3" data-url="music/games/3.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody4" data-url="music/games/4.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+            </ul>
+        </li>
+
+        <li class="melodyGroup" id="group4">
+            <ul>
+                <li class="groupDetails">
+                    <h3>Game Melodies</h3>
+                    <div class="command">
+                        python run.py auto --prompt-provider=ollama --keep-metadata --use-case "Background music for levels in an RPG." --dest-path game-music --min-durati
+    on 60 --max-duration 80 --keep-metadata
+                    </div>
+                </li>
+                <li class="melodyRow" id="melody1" data-url="music/games/1.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody2" data-url="music/games/2.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody3" data-url="music/games/3.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody4" data-url="music/games/4.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+            </ul>
+        </li>
+
+        <li class="melodyGroup" id="group5">
+            <ul>
+                <li class="groupDetails">
+                    <h3>Game Melodies</h3>
+                    <div class="command">
+                        python run.py auto --prompt-provider=ollama --keep-metadata --use-case "Background music for levels in an RPG." --dest-path game-music --min-durati
+    on 60 --max-duration 80 --keep-metadata
+                    </div>
+                </li>
+                <li class="melodyRow" id="melody1" data-url="music/games/1.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody2" data-url="music/games/2.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody3" data-url="music/games/3.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+                <li class="melodyRow" id="melody4" data-url="music/games/4.mp3">
+                    <div class="melodyParams">
+                        <div>Prompt:<span>A nostalgic and dreamy melody...</span></div>
+                        <div>BPM:<span>60</span></div>
+                    </div>
+                    <div>
+                        <progress class="melodyProgress" value="0" max="100"></progress>
+                        <button class="pauseResumeBtn" disabled>Pause</button>
+                    </div>
+                </li>
+
+            </ul>
+        </li>
+    </ul>
+</body>
+</html>

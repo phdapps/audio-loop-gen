@@ -524,8 +524,9 @@ def export_audio(audio: AudioData, filename_base: str, format="wav"):
             filename (str): The name of the file to write to (without extension, it will automatically add .wav).
     """
     wav = torch.from_numpy(audio.audio_data)
+    # audo_write will create the directory chain if it doesn't exist
     audio_write(filename_base, wav, audio.sample_rate,
-                strategy="loudness", loudness_compressor=True, format=format)
+                strategy="loudness", loudness_compressor=True, format=format, make_parent_dir=True)
 
 def set_all_seeds(seed):
     # From https://gist.github.com/gatheluck/c57e2a40e3122028ceaecc3cb0d152ac
