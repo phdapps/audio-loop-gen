@@ -10,6 +10,8 @@ __audio_loop_gen__ is based on Meta's [MusicGen](https://audiocraft.metademolab.
 
 - Audio processing algorithms that clip the generated audio into loopable music, i.e. a melopdy that can play in a seamless loop
 
+[Examples](https://phdapps.github.io/audio-loop-gen/examples/demo/)
+
 ## Installation
 
 - Install *ffmpeg* for your OS
