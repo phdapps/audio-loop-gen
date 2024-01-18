@@ -1,3 +1,5 @@
-# Documentation
+# Documentation for [audio-loop-gen](https://phdapps.github.io/audio-loop-gen)
 
-[Examples](https://phdapps.github.io/audio-loop-gen/examples/)
+- [Code and README](https://phdapps.github.io/audio-loop-gen)
+
+- [Examples](https://phdapps.github.io/audio-loop-gen/examples/)

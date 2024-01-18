@@ -1,4 +1,4 @@
-# Examples
+# Examples for [audio-loop-gen](https://phdapps.github.io/audio-loop-gen)
 
 - [Demo](https://phdapps.github.io/audio-loop-gen/examples/demo/)
 

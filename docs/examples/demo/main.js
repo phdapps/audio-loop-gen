@@ -124,7 +124,7 @@ async function loadMusicData() {
         groupElement.appendChild(melodiesList);
         groupsContainer.appendChild(groupElement);
     }
-
+    document.getElementById('loaderContainer').style.display = 'none';
     document.body.appendChild(groupsContainer);
 }
 
