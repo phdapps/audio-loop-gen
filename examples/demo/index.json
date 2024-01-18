@@ -1,0 +1,32 @@
+[
+{
+	"id": "group2", 
+	"title": "Puzzle Game Music", 
+	"command": " python run.py auto --prompt-provider=openai --keep-metadata --use-case \"Background music for the menus and levels of puzzle and casual games.\" --dest-path demo-music --min-duration 20 --max-duration 40 --keep-metadata --file-prefix \"puzzle-\" --save-format mp3", 
+	"items": ["music/puzzle/1", "music/puzzle/2", "music/puzzle/3", "music/puzzle/4", "music/puzzle/5"]
+},
+{
+	"id": "group3", 
+	"title": "Action Game Music", 
+	"command": "python run.py auto --prompt-provider=ollama --keep-metadata --use-case \"Music for first-person shooters, sport and action games.\" --dest-path demo-music --min-duration 20 --max-duration 40 --keep-metadata --file-prefix \"action-\" --save-format mp3", 
+	"items": ["music/action/1", "music/action/2", "music/action/3", "music/action/4", "music/action/5"]
+},
+{
+	"id": "group4", 
+	"title": "Cartoon Music", 
+	"command": "python run.py auto --prompt-provider=openai --keep-metadata --use-case \"Music for cartoons, children stories and animation.\" --dest-path demo-music --min-duration 20 --max-duration 40 --keep-metadata --file-prefix \"cartoon-\" --save-format mp3", 
+	"items": ["music/cartoon/1", "music/cartoon/2", "music/cartoon/3", "music/cartoon/4", "music/cartoon/5"]
+},
+{
+	"id": "group5", 
+	"title": "Lounge Music", 
+	"command": "python run.py auto --prompt-provider=ollama --keep-metadata --use-case \"Relaxing melodies for reading, thinking, meditation, conversation in a cafe or lounge.\" --dest-path demo-music --min-duration 20 --max-duration 40 --keep-metadata --file-prefix \"lounge-\" --save-format mp3", 
+	"items": ["music/lounge/1", "music/lounge/2", "music/lounge/3", "music/lounge/4", "music/lounge/5"]
+},
+{
+	"id": "group1", 
+	"title": "Documentary Video Music", 
+	"command": "python run.py auto --prompt-provider=openai --keep-metadata --use-case \"Background music for documentary videos.\" --dest-path demo-music --min-duration 20 --max-duration 40 --keep-metadata", 
+	"items": ["music/video/1", "music/video/2", "music/video/3", "music/video/4", "music/video/5"]
+}]
+	

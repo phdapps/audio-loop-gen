@@ -27,6 +27,8 @@ class TransientAligned(LoopStrategy):
     WEIGHT_SPECTRAL_FLATNESS = 0.25
     # Weight for dynamic range in the combined metric.
     WEIGHT_DYNAMIC_RANGE = 0.15
+    
+    strategy_id: str = "TransientAligned"
 
     def __init__(self, audio: AudioData, min_loop_duration: int = 20000):
         super().__init__(audio=audio, min_loop_duration=min_loop_duration)
@@ -80,7 +82,7 @@ class TransientAligned(LoopStrategy):
             raise ValueError(
                 "Audio is not suitable for transient-aligned looping")
 
-        self.logger.debug("Using TransientAligned strategy for loop")
+        self.logger.debug("Using %s strategy for loop", type(self).strategy_id)
         loop = slice_and_blend(self.audio, self.__loop_start, self.__loop_end)
         return loop
 

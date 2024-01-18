@@ -6,6 +6,8 @@ from ..util import AudioData, slice_and_blend
 
 class BeatDetect(LoopStrategy):
     BLEND_SAMPLES = 100
+    
+    strategy_id: str = "BeatDetect"
     def __init__(self, audio: AudioData, min_loop_duration:int = 20000):
         super().__init__(audio=audio, min_loop_duration=min_loop_duration)
         self.__loop_start: int = -1
@@ -61,7 +63,7 @@ class BeatDetect(LoopStrategy):
         if not self.evaluate():
             raise ValueError("Audio is not suitable for this loop strategy.")
         
-        self.logger.debug("Using BeatDetect strategy for loop")
+        self.logger.debug("Using %s strategy for loop", type(self).strategy_id)
         
         loop = slice_and_blend(self.audio, self.__loop_start, self.__loop_end)
         

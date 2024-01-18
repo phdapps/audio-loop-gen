@@ -10,6 +10,8 @@ class FadeInOut(LoopStrategy):
     The duration of these fades can be adjusted to suit different audio lengths and types.
     """
 
+    strategy_id: str = "FadeInOut"
+    
     def __init__(self, audio: AudioData, min_loop_duration: int = 20000, fade_duration: int = 200):
         """
         Initialize the SimpleFadeLoop object.
@@ -43,7 +45,7 @@ class FadeInOut(LoopStrategy):
         Raises:
         ValueError: If the audio is not suitable for simple fade looping.
         """
-        self.logger.debug("Using FadeInOut strategy for loop")
+        self.logger.debug("Using %s strategy for loop", type(self).strategy_id)
         loop = fade_in(self.audio.audio_data, self.audio.sample_rate, self.__fade_duration)
         loop = fade_out(loop, self.audio.sample_rate, self.__fade_duration)
         return AudioData(loop, self.audio.sample_rate)

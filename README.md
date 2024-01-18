@@ -80,6 +80,8 @@ Examples:
         --min-duration                           INTEGER RANGE [5<=x<=120]   The minimum duration in seconds for the generated loop [default: 40]
         
         --seed                                   INTEGER                     The seed to use for the varios random generators to allow reproducability. -1 for random. [default: -1]
+
+        --save-format                            [flac|mp3|ogg|wav]          The format to use when exporting the generated audio file. [default: mp3]
         
         --dest-path                              TEXT                        Local path where to save the generated audio files. [default: None]
         
@@ -120,6 +122,8 @@ Examples:
          --max-duration                             INTEGER RANGE [5<=x<=120]  The maximum duration in seconds of the generated loop [default: 66]
          
          --min-duration                             INTEGER RANGE [5<=x<=120]  The minimum duration in seconds for the generated loop [default: 40]
+
+         --save-format                              [flac|mp3|ogg|wav]         The format to use when exporting the generated audio file. [default: mp3]
          
          --dest-path                                TEXT                       Local path where to save the generated audio files. [default: None]
          
@@ -137,8 +141,10 @@ Examples:
 
 Notes:
 
-  1. When using S3 for storage, the corresponding AWS credentials with write access to the bucket should already be configured.
+  1. Only tested on Windows and Linux with Nvidia GPUs. I'm not a Mac user and support for Mac OS and Apple hardware is not a priority! Renting a cloud server with a decent GPU is always an option.
 
-  2. When using OpenAI for prompt generation the api key should already be set in the OPENAI_API_KEY env variable
+  2. When using S3 for storage, the corresponding AWS credentials with write access to the bucket should already be configured.
 
-  3. Use the "--use-case" option to give the LLM some extra hints about the music you want to generate
+  3. When using OpenAI for prompt generation the api key should already be set in the OPENAI_API_KEY env variable. Conversely, Ollama should already be running if using it for generating prompts locally.
+
+  4. Use the "--use-case" option to give the LLM some extra hints about the music you want to generate
