@@ -44,8 +44,6 @@ def create_store(
                 prefix += "/"
         if file_prefix:
             prefix += file_prefix
-            if not prefix.endswith("/"):
-                prefix += "/"
         handlers.append(S3DataHandler(bucket=s3_bucket, prefix=prefix, format=save_format, keep_metadata=keep_metadata))
     if dest_path:
         handlers.append(FileDataHandler(dest=dest_path, prefix=file_prefix, format=save_format, keep_metadata=keep_metadata))
@@ -60,9 +58,9 @@ def create_prompt_provider(prompt_provider:PromptProvider, llm_model:str, use_ca
         return LoopGenParams(prompt=prompt, bpm=bpm, max_duration=_max_duration,
                             min_duration=_min_duration, **kwargs)
         
-    if prompt_provider == "ollama":
+    if prompt_provider == PromptProvider.ollama:
         promptgen = Ollama(model_id=llm_model, use_case=use_case, params_callback=params_callback)
-    elif prompt_provider == "openai":
+    elif prompt_provider == PromptProvider.openai:
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("Missing OPENAI_API_KEY environment variable!")
@@ -130,7 +128,7 @@ def generate(
     
     setup_logging(log_level=log_level)
     
-    audio_store = create_store(save_format, dest_path, file_prefix, s3_bucket, s3_path, keep_metadata)
+    audio_store = create_store(save_format.value, dest_path, file_prefix, s3_bucket, s3_path, keep_metadata)
     
     # generate an audio segment using the given parameters
     audiogen = create_audio_generator(audio_model)
@@ -173,7 +171,7 @@ def auto(
     log_level:Annotated[int, typer.Option(help="Log level as defined in the logging module (i.e. DEBUG=10, INFO=20 etc)")] = None):
     setup_logging(log_level=log_level)
     
-    audio_store = create_store(save_format, dest_path, file_prefix, s3_bucket, s3_path, keep_metadata)
+    audio_store = create_store(save_format.value, dest_path, file_prefix, s3_bucket, s3_path, keep_metadata)
     
     prompt_provider = create_prompt_provider(prompt_provider, llm_model, use_case, max_duration, min_duration)
     

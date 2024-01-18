@@ -34,10 +34,10 @@ class S3DataHandler(AudioHandler):
             with tempfile.NamedTemporaryFile(suffix=f".{self.__format}", delete=False) as f:
                 temp_file = f
             # export to the temp file
-            export_audio(audio, temp_file.name, self.__format)
-            # read back the data
-            temp_file.seek(0)  # Go back to the beginning of the file
-            data = temp_file.read()
+            noext, _ = os.path.splitext(temp_file.name)
+            export_audio(audio, noext, self.__format)
+            with open(temp_file.name, "rb") as f:
+                data = f.read()
             base_name = self.base_name(audio)
             key = f"{base_name}.{self.__format}"
             self.__s3_client.put_object(Bucket=self.__bucket, Key=key, Body=data)
