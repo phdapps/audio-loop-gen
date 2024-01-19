@@ -8,7 +8,7 @@ __audio_loop_gen__ is based on Meta's [MusicGen](https://audiocraft.metademolab.
 
 - Automated music prompt generation using a secondary LLM such as OpenAI or a locally running open-source model such as "Mistral 7b"
 
-- Audio processing algorithms that clip the generated audio into loopable music, i.e. a melopdy that can play in a seamless loop
+- Audio processing algorithms that clip the generated audio into loopable music, i.e. a melody that can play in a seamless loop
 
 [Examples](https://phdapps.github.io/audio-loop-gen/examples/demo/)
 
