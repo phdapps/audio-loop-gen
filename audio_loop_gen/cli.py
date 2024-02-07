@@ -71,6 +71,7 @@ def create_prompt_provider(prompt_provider:PromptProvider, llm_model:str, use_ca
     return promptgen
 
 def create_audio_generator(audio_model:str) -> AudioGenerator:
+    print("Loading audio model...")
     audiogen = AudioGenerator(model_id=audio_model)
     def progress_callback(generated, total):
         step = total // 20
@@ -88,19 +89,24 @@ async def auto_loop(prompt_provider:PromptProvider, audio_store: AudioStore, aud
             except Exception as ex:
                 logger.error("Error while generating prompts: %s", ex, exc_info=True)
                 await asyncio.sleep(0.1)
+                continue
             for params in params_list:
-                try:
-                    print(f"Generating music, be patient...")
-                    sr, audio_data = audiogen.generate(params)
-                    loopgen = LoopGenerator(AudioData(audio_data, sr), params)
-                    loop = loopgen.generate()
-                    if loop:
-                        audio_store.store(loop, params)
-                        print("\nSaved")
-                    else:
-                        print("\nUnsuitable for looping, skipping")
-                except Exception as e:
-                    logger.error("Error while generating loop: %s", e, exc_info=True)
+                while True: # retry the params until a loop is generated
+                    try:
+                        print(f"Generating music, be patient...")
+                        sr, audio_data = audiogen.generate(params)
+                        loopgen = LoopGenerator(AudioData(audio_data, sr), params)
+                        loop = loopgen.generate()
+                        if loop:
+                            audio_store.store(loop, params)
+                            print("\nSaved")
+                            break
+                        else:
+                            print("\nUnsuitable for looping, retrying...")
+                            continue
+                    except Exception as e:
+                        logger.error("Error while generating loop: %s", e, exc_info=True)
+                        break
                 await asyncio.sleep(0.1)
         except KeyboardInterrupt:
             break

@@ -9,7 +9,7 @@ class Manual(PromptGenerator):
     def __init__(self, use_case:str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
         super().__init__(use_case=use_case, params_callback = params_callback)
 
-    async def generate(self, max_count: int = 1) -> list[LoopGenParams]:
+    async def generate(self, max_count: int = 1, seed: int = -1) -> list[LoopGenParams]:
         loop_gen_params = []
 
         print(f"Enter parameters for up to {max_count} loops" + " for the use case: \"{self.use_case}\"..." if self.use_case else "...")

@@ -22,6 +22,8 @@ __audio_loop_gen__ is based on Meta's [MusicGen](https://audiocraft.metademolab.
 
         conda create --name loopgen python=3.11
 
+        conda activate loopgen
+
 - Clone the code
   
         git clone https://github.com/phdapps/audio-loop-gen
@@ -29,6 +31,7 @@ __audio_loop_gen__ is based on Meta's [MusicGen](https://audiocraft.metademolab.
 - Install the requirements:
 
         cd audio-loop-gen
+        
         pip install -r requirements.txt
 
 - To generate prompts locally using something like "Mistral 7b" you'll need *ollama*. [Installation instructions](https://github.com/jmorganca/ollama)
