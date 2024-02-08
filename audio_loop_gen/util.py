@@ -237,28 +237,49 @@ def crossfade(audio_data: np.ndarray, sample_rate: int, crossfade_duration_ms: i
 
     return final_audio
 
-
-def fade_in(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int) -> np.ndarray:
-    """ Applies a fade-in effect to the start of an audio segment.
+def equal_power_crossfade(audio_data: np.ndarray, sample_rate: int, crossfade_duration_ms: int, min_level: float = 0.0, max_level = 1.0) -> np.ndarray:
+    """ Applies an equal power (constant power) crossfade effect to the end of an audio segment.
+    
+    The crossfade effect is applied to the last `crossfade_duration_ms` milliseconds of the audio segment.
+    It blends a faded out version of the end of the audio segment with the faded in version of its start, both of the same duration (crossfade_duration_ms).
 
     Args:
-        audio_data (np.ndarray): The audio data to fade in.
+        audio_data (np.ndarray): The audio data to crossfade
         sample_rate (int): The sample rate of the audio data.
-        fade_duration_ms (int): The duration of the fade-in effect in milliseconds.
+        crossfade_duration_ms (int): The duration of the crossfade effect in milliseconds.
+
+    Raises:
+        ValueError: If the crossfade duration is too long for the audio length.
 
     Returns:
-        np.ndarray: The audio data with the fade-in effect applied. It's a copy of the original audio data, which is not modified.
+        np.ndarray: The audio data with the crossfade effect applied.
     """
-    fade_samples = int(sample_rate * fade_duration_ms / 1000)
-    fade = np.linspace(0, 1, fade_samples, dtype=np.float32)
-    # Create a copy of the audio data
+    crossfade_samples = int(sample_rate * crossfade_duration_ms / 1000)
 
-    audio_data_faded = audio_data.copy()
+    if crossfade_samples >= audio_data.shape[1] // 2:
+        # Crossfade duration is too long for the audio length
+        raise ValueError(
+            "Crossfade duration is too long for the length of the audio.")
 
-    # Apply fade to the beginning of the loop
-    audio_data_faded[:, :fade_samples] *= fade
+    # Create equal power crossfade curves using sine and cosine
+    t = np.linspace(min_level*np.pi / 2, max_level*np.pi / 2, crossfade_samples, dtype=np.float32)
+    fade_out = np.cos(t)  # Decreases in volume
+    fade_in = np.sin(t)   # Increases in volume
 
-    return audio_data_faded
+    # Apply fade-out to the end segment
+    end_faded = audio_data[:, -crossfade_samples:] * fade_out
+
+    # Apply fade-in to the start segment
+    start_faded = audio_data[:, :crossfade_samples] * fade_in
+
+    # Blend the crossfade region
+    crossfaded_region = end_faded + start_faded
+
+    # Construct the final audio
+    final_audio = np.concatenate(
+        [audio_data[:, :-crossfade_samples], crossfaded_region], axis=1)
+
+    return final_audio
 
 def linear_crossfade_arrays(audio_a: np.ndarray, audio_b: np.ndarray, sample_rate: int, crossfade_duration_ms: int, min_level: float = 0.0, max_level: float = 1.0) -> np.ndarray:
     """
@@ -334,11 +355,11 @@ def equal_power_crossfade_arrays(audio_a: np.ndarray, audio_b: np.ndarray, sampl
     crossfade_samples = int(sample_rate * crossfade_duration_ms / 1000)
 
     # Check if either audio segment is too short for the crossfade duration
-    if crossfade_samples >= min(audio_a.shape[1], audio_b.shape[1]):
+    if crossfade_samples > min(audio_a.shape[1], audio_b.shape[1]):
         raise ValueError("Crossfade duration is too long for the length of one or both audio segments.")
 
     # Create equal power crossfade curves using sine and cosine
-    t = np.linspace(0, np.pi / 2, crossfade_samples, dtype=np.float32)
+    t = np.linspace(min_level*np.pi / 2, max_level*np.pi / 2, crossfade_samples, dtype=np.float32)
     fade_out = np.cos(t)  # Decreases in volume
     fade_in = np.sin(t)   # Increases in volume
 
@@ -355,6 +376,28 @@ def equal_power_crossfade_arrays(audio_a: np.ndarray, audio_b: np.ndarray, sampl
     final_audio = np.concatenate([audio_a[:, :-crossfade_samples], crossfaded_region, audio_b[:, crossfade_samples:]], axis=1)
 
     return final_audio
+
+def fade_in(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int) -> np.ndarray:
+    """ Applies a fade-in effect to the start of an audio segment.
+
+    Args:
+        audio_data (np.ndarray): The audio data to fade in.
+        sample_rate (int): The sample rate of the audio data.
+        fade_duration_ms (int): The duration of the fade-in effect in milliseconds.
+
+    Returns:
+        np.ndarray: The audio data with the fade-in effect applied. It's a copy of the original audio data, which is not modified.
+    """
+    fade_samples = int(sample_rate * fade_duration_ms / 1000)
+    fade = np.linspace(0, 1, fade_samples, dtype=np.float32)
+    # Create a copy of the audio data
+
+    audio_data_faded = audio_data.copy()
+
+    # Apply fade to the beginning of the loop
+    audio_data_faded[:, :fade_samples] *= fade
+
+    return audio_data_faded
 
 def fade_out(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int) -> np.ndarray:
     """ Applies a fade-out effect to the start of an audio segment.
