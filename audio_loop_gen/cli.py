@@ -95,7 +95,8 @@ async def auto_loop(prompt_provider:PromptProvider, audio_store: AudioStore, aud
                     try:
                         print(f"Generating music, be patient...")
                         sr, audio_data = audiogen.generate(params)
-                        loopgen = LoopGenerator(AudioData(audio_data, sr), params)
+                        ad = AudioData(audio_data, sr)
+                        loopgen = LoopGenerator(ad, params)
                         loop = loopgen.generate()
                         if loop:
                             audio_store.store(loop, params)

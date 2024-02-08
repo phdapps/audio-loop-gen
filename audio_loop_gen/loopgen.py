@@ -1,18 +1,20 @@
-from .util import AudioData, LoopGenParams, prune_silence
+from .util import AudioData, LoopGenParams, prune_silence, equal_power_crossfade
 from .loop_strategy import LoopStrategy, TransientAligned, CrossFade, BeatDetect
 # from .loop_strategy import FadeInOut
 
+CROSSFADE_DURATION_MS = 1000
 
 class LoopGenerator(object):
     SILENCE_TOP_DB = 45
 
-    def __init__(self, audio: AudioData, params: LoopGenParams):
+    def __init__(self, audio: AudioData, params: LoopGenParams, crossfade: bool = True):
         assert audio is not None
         assert params is not None
         self.__params = params
         self.__min_loop_duration = params.min_duration * 1000
         self.__audio = self.__prepare_data(audio)
         self.__strategies = self.__prepare_strategies()
+        self.__crossfade = crossfade
 
     def generate(self) -> AudioData:
         loop = None
@@ -23,6 +25,9 @@ class LoopGenerator(object):
                 self.__params.strategy_id = strategy.strategy_id
                 break
 
+        if self.__crossfade  and loop is not None:
+            wav = equal_power_crossfade(loop.audio_data, loop.sample_rate, CROSSFADE_DURATION_MS, min_level=0.25, max_level=0.75)
+            loop = AudioData(wav, loop.sample_rate)
         return loop
 
     def __prepare_data(self, audio: AudioData) -> AudioData:
