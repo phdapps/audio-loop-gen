@@ -75,7 +75,7 @@ class PromptGenerator(object):
         """ Generate generation params for the given number of loops.
 
         Args:
-            count (int, optional): The number of loops we want to generate. Defaults to 1.
+            max_count (int, optional): The number of loops we want to generate. Defaults to 1.
             kwargs: Additional arguments to pass to the generator.
 
         Returns:
