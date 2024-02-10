@@ -58,23 +58,17 @@ class Ollama(PromptGenerator):
                 lines = content.splitlines()
                 for line in lines:
                     line = trim_line(line)
-                    # each line should have the format: "prompt:<prompt>|bpm:<bpm>|other_key:other_value..."
+                    # each line should have the format: "<prompt>|bpm"
                     try:
-                        data = {}
-                        parts = line.split("|")
-                        for part in parts:
-                            kvs = part.split(":", maxsplit=1)
-                            data[kvs[0]] = kvs[1]
-                        if not "prompt" in data or not "bpm" in data:
+                        parts = line.split("|", maxsplit=1)
+                        if len(parts) < 2:
                             self.logger.debug(
-                                "Invalid llama message: %s", line)
+                                "Invalid llama response line: %s", line)
                             continue
-                        params = self.params_callback(
-                            data.pop("prompt"), int(data.pop("bpm")), **data)
+                        params = self.params_callback(parts[0], int(parts[1].strip()))
                         params_list.append(params)
                     except Exception as e:
                         # The LLM can generate garbage, which we'll just ignore
-                        self.logger.debug(
-                            "Error parsing llama message: %s", str(e))
+                        self.logger.debug("Error parsing llama response line %s", line, exc_info=e)
                         continue
         return params_list

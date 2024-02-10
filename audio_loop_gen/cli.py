@@ -35,7 +35,7 @@ def create_store(
         print("No storage destination specified, using current directory!")
         dest_path = "."
 
-    handlers:[AudioHandler] = []
+    handlers:list[AudioHandler] = []
     if s3_bucket is not None:
         prefix = ""
         if s3_path:
@@ -120,8 +120,8 @@ def generate(
     prompt:Annotated[str, typer.Argument(help="The prompt to use for the audio generation model.")],
     audio_model:Annotated[str, typer.Option(help="The name of the MusicGen model to use.")] = None,
     bpm:Annotated[int, typer.Option(help="The beats per minute to target for the generated audio", min=24, max=240)] = 60,
-    max_duration:Annotated[int, typer.Option(help="The maximum duration in seconds of the generated loop", min=5, max=120)] = 66,
-    min_duration:Annotated[int, typer.Option(help="The minimum duration in seconds for the generated loop", min=5, max=120)] = 40,
+    max_duration:Annotated[int, typer.Option(help="The maximum duration in seconds of the generated loop", min=8, max=128)] = 66,
+    min_duration:Annotated[int, typer.Option(help="The minimum duration in seconds for the generated loop", min=8, max=128)] = 40,
     seed:Annotated[int, typer.Option(help="The seed to use for the varios random generators to allow reproducability. -1 for random.")] = -1,
     # storage options
     save_format:Annotated[SaveFormat, typer.Option(help="The format to use when exporting the generated audio file.")] = SaveFormat.mp3,
@@ -165,8 +165,8 @@ def auto(
     use_case:Annotated[str, typer.Option(help="Extra use case details to send to the prompt generator to influence the type of melodies it would focus on.")] = None,
     # audio generation options
     audio_model:Annotated[str, typer.Option(help="The name of the MusicGen model to use.")] = None,
-    max_duration:Annotated[int, typer.Option(help="The maximum duration in seconds of the generated loop", min=5, max=120)] = 66,
-    min_duration:Annotated[int, typer.Option(help="The minimum duration in seconds for the generated loop", min=5, max=120)] = 40,
+    max_duration:Annotated[int, typer.Option(help="The maximum duration in seconds of the generated loop", min=8, max=128)] = 66,
+    min_duration:Annotated[int, typer.Option(help="The minimum duration in seconds for the generated loop", min=8, max=128)] = 40,
     # storage options
     save_format:Annotated[SaveFormat, typer.Option(help="The format to use when exporting the generated audio file.")] = SaveFormat.mp3,
     dest_path:Annotated[str, typer.Option(help="Local path where to save the generated audio files.")] = None,

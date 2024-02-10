@@ -1,6 +1,14 @@
 import logging
 
-from ..util import AudioData
+from ..util import AudioData, fade_in, fade_out, equal_power_crossfade, adjust_loop_ends, align_phase
+
+CROSSFADE_DURATION_MS = 800
+CROSSFADE_MIN_LEVEL = 0.33
+CROSSFADE_MAX_LEVEL = 0.66
+BLEND_FADE_DURATION_MS = 800
+BLEND_FADE_IN_LEVEL = 0.66
+BLEND_FADE_OUT_LEVEL = 0.5
+PHASE_ALIGN_DURATION_MS = 100
 
 class LoopStrategy(object):
     BLEND_SAMPLES = 100
@@ -50,4 +58,32 @@ class LoopStrategy(object):
             ndarray: The audio data for the loop.
         """
         raise NotImplementedError
+    
+    def slice_and_blend(self, loop: AudioData, loop_start: int, loop_end: int) -> AudioData:
+        """ Slice a loop from the audio data and apply some blending to avoid clicks.
+
+        Args:
+            audio (AudioData): The audio data to slice from.
+            loop_start (int): The start index of the cut.
+            loop_end (int): The end index of the cut.
+
+        Returns:
+            AudioData: The sliced and blended audio data.
+        """
+        # Slice the loop and apply blending
+        # Quick blend to avoid clicks
+        audio_data = loop.audio_data
+        loop_start, loop_end = adjust_loop_ends(loop, loop_start, loop_end)
+        
+        align_length = min((loop_end - loop_start) // 2, (loop.sample_rate * PHASE_ALIGN_DURATION_MS) // 1000) # PHASE_ALIGN_DURATION_MS or half the loop length
+        audio_data = align_phase(audio_data, loop_start, loop_end, segment_length=align_length, in_place=True)
+        
+        audio_data = audio_data[:, loop_start:loop_end]
+        # first crossfade with the start of the loop
+        audio_data = equal_power_crossfade(audio_data, loop.sample_rate, crossfade_duration_ms=CROSSFADE_DURATION_MS, max_level=CROSSFADE_MAX_LEVEL, min_level=CROSSFADE_MIN_LEVEL)
+        # then apply some fading at start and end
+        audio_data = fade_in(audio_data, loop.sample_rate, BLEND_FADE_DURATION_MS, min_level=BLEND_FADE_IN_LEVEL, in_place=True)
+        audio_data = fade_out(audio_data, loop.sample_rate, BLEND_FADE_DURATION_MS, min_level=BLEND_FADE_OUT_LEVEL, in_place=True)
+        
+        return AudioData(audio_data, loop.sample_rate)
                 

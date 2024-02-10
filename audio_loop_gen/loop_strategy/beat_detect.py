@@ -2,11 +2,9 @@ import numpy as np
 import librosa
 
 from .base import LoopStrategy
-from ..util import AudioData, slice_and_blend
+from ..util import AudioData
 
 class BeatDetect(LoopStrategy):
-    BLEND_SAMPLES = 100
-    
     strategy_id: str = "BeatDetect"
     def __init__(self, audio: AudioData, min_loop_duration:int = 20000):
         super().__init__(audio=audio, min_loop_duration=min_loop_duration)
@@ -24,7 +22,8 @@ class BeatDetect(LoopStrategy):
             return self.__loop_start >= 0 and self.__loop_end >= 0
         
         # Normalize
-        normalized_audio = self.audio.mono_audio_data / np.abs(self.audio.mono_audio_data).max()
+        mono_samples = self.audio.mono_audio_data[0]
+        normalized_audio = mono_samples / np.abs(mono_samples).max()
 
         # Estimate beats
         _, beats = librosa.beat.beat_track(y=normalized_audio, sr=self.audio.sample_rate)
@@ -65,6 +64,6 @@ class BeatDetect(LoopStrategy):
         
         self.logger.debug("Using %s strategy for loop", type(self).strategy_id)
         
-        loop = slice_and_blend(self.audio, self.__loop_start, self.__loop_end)
+        loop = self.slice_and_blend(self.audio, self.__loop_start, self.__loop_end)
         
         return loop

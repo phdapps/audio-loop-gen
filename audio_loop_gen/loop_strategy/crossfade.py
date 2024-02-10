@@ -2,7 +2,7 @@ import numpy as np
 import librosa
 
 from .base import LoopStrategy
-from ..util import AudioData, crossfade, fade_out
+from ..util import AudioData, equal_power_crossfade, fade_out
 
 class CrossFade(LoopStrategy):
     """
@@ -13,6 +13,7 @@ class CrossFade(LoopStrategy):
 
     # Threshold for spectral centroids variance to determine if the audio is ambient or textural
     SPECTRAL_CENTROIDS_THRESHOLD = 1000
+    CROSSFADE_DURATION_MS = 1000
 
     strategy_id: str = "CrossFade"
     
@@ -39,10 +40,10 @@ class CrossFade(LoopStrategy):
         if self.__is_suitable is not None:
             return self.__is_suitable
 
-        audio_data = self.audio.mono_audio_data
+        mono_samples = self.audio.mono_audio_data[0]
 
         spectral_centroids = librosa.feature.spectral_centroid(
-            y=audio_data, sr=self.audio.sample_rate)
+            y=mono_samples, sr=self.audio.sample_rate)
         self.__is_suitable = np.var(spectral_centroids) < type(
             self).SPECTRAL_CENTROIDS_THRESHOLD
 
@@ -61,6 +62,6 @@ class CrossFade(LoopStrategy):
         if not self.evaluate():
             raise ValueError("Audio is not suitable for crossfade looping")
         self.logger.debug("Using %s strategy for loop", type(self).strategy_id)
-        loop = crossfade(self.audio.audio_data, self.audio.sample_rate, crossfade_duration_ms=400)
-        loop = fade_out(loop, self.audio.sample_rate, fade_duration_ms=600)
+        loop = equal_power_crossfade(self.audio.audio_data, self.audio.sample_rate, crossfade_duration_ms=self(type).CROSSFADE_DURATION_MS)
+        loop = fade_out(loop, self.audio.sample_rate, fade_duration_ms=600, in_place=True)
         return AudioData(loop, self.audio.sample_rate)
