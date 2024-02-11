@@ -1,7 +1,7 @@
-from typing import Callable, Concatenate
+from typing_extensions import Callable, Concatenate
 import openai
 
-from .base import PromptGenerator, trim_line, randomized_llm_chat_system_message
+from .base import PromptGenerator, trim_line, randomized_llm_chat_system_message, PS
 from ..util import LoopGenParams
 
 OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE = "Generate {count} sets of parameters for generating a melody."
@@ -9,7 +9,7 @@ OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE_USE_CASE_EXTRA =  "The melody's use
 
 TRIM_LINE_NUM_REGEX = r"^\d+\s+"
 class OpenAI(PromptGenerator):
-    def __init__(self, api_key: str, model_id: str = None, use_case:str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
+    def __init__(self, api_key: str, model_id: str = None, use_case:str = None, params_callback: Callable[Concatenate[str, int, PS], LoopGenParams] = None):
         super().__init__(use_case=use_case, params_callback = params_callback)
         if api_key is None:
             raise ValueError("Missing API key!")
@@ -63,20 +63,17 @@ class OpenAI(PromptGenerator):
                 lines = response_message.splitlines()
                 for line in lines:
                     line = trim_line(line)
-                    # each line should have the format: "prompt:<prompt>|bpm:<bpm>|other_key:other_value..."
+                    # each line should have the format: "<prompt>|bpm"
                     try:
-                        data = {}
-                        parts = line.split("|")
-                        for part in parts:
-                            kvs = part.split(":", maxsplit=1)
-                            data[kvs[0]] = kvs[1]
-                        if not "prompt" in data or not "bpm" in data:
-                            self.logger.debug("Invalid OpenAI completion: %s", line)
+                        parts = line.split("|", maxsplit=1)
+                        if len(parts) < 2:
+                            self.logger.debug(
+                                "Invalid OpenAI response line: %s", line)
                             continue
-                        params = self.params_callback(data.pop("prompt"), int(data.pop("bpm")), **data)
+                        params = self.params_callback(parts[0], int(parts[1].strip()))
                         params_list.append(params)
                     except Exception as e:
                         # The LLM can generate garbage, which we'll just ignore
-                        self.logger.debug("Error parsing OpenAI completion: %s", str(e))
+                        self.logger.debug("Error parsing OpenAI response line %s", line, exc_info=e)
                         continue
         return params_list

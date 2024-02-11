@@ -3,7 +3,7 @@ from numpy import ndarray
 import librosa
 
 from .base import LoopStrategy
-from ..util import AudioData, find_similar_endpoints, slice_and_blend
+from ..util import AudioData, find_similar_endpoints
 
 
 class TransientAligned(LoopStrategy):
@@ -40,19 +40,19 @@ class TransientAligned(LoopStrategy):
         if self.__evaluated:
             return self.__loop_start >= 0
 
-        audio_data = self.audio.mono_audio_data
+        mono_samples = self.audio.mono_audio_data[0]
 
         transients = self.__transient_detection(
-            audio_data, self.audio.sample_rate)
+            mono_samples, self.audio.sample_rate)
         if transients is None or transients.size < 2:  # should have at least 2 transients
             self.__evaluated = True
             return False
         threshold = self.__calculate_transients_threshold(
-            audio_data=audio_data)
+            audio_data=mono_samples)
         suitable = len(transients) > threshold
         if suitable:
             loop_start, loop_end = find_similar_endpoints(
-                audio_data=audio_data, sample_rate=self.audio.sample_rate, frames=transients)
+                audio_data=mono_samples, sample_rate=self.audio.sample_rate, frames=transients)
             if loop_start < 0 or loop_end < 0:
                 return False
             loop_duration = ((loop_end - loop_start) /
@@ -83,7 +83,7 @@ class TransientAligned(LoopStrategy):
                 "Audio is not suitable for transient-aligned looping")
 
         self.logger.debug("Using %s strategy for loop", type(self).strategy_id)
-        loop = slice_and_blend(self.audio, self.__loop_start, self.__loop_end)
+        loop = self.slice_and_blend(self.audio, self.__loop_start, self.__loop_end)
         return loop
 
     def __calculate_transients_threshold(self, audio_data: ndarray) -> int:

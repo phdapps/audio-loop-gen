@@ -15,12 +15,18 @@ __audio_loop_gen__ is based on Meta's [MusicGen](https://audiocraft.metademolab.
 ## Installation
 
 - Install *ffmpeg* for your OS
-  
-- Tested with Python 3.11 only.
-  
-  - Create a dedicated environment with Python 3.11. Using [Anaconda](https://www.anaconda.com/download/) is highly recommended!
 
-        conda create --name loopgen python=3.11
+- Install PortAudio for you platform:
+  
+        sudo apt-get install portaudio19-dev (Linux)
+
+        https://winget.run/pkg/intxcc/pyaudio (Windows)
+  
+- The library uses [BeatNet](https://github.com/mjhydri/BeatNet) which only works with Python 3.9 or earlier! This code was tested with Python 3.9 only.
+  
+- Create a dedicated environment with Python 3.9. Using [Anaconda](https://www.anaconda.com/download/) is highly recommended!
+
+        conda create --name loopgen python=3.9
 
         conda activate loopgen
 
@@ -31,6 +37,8 @@ __audio_loop_gen__ is based on Meta's [MusicGen](https://audiocraft.metademolab.
 - Install the requirements:
 
         cd audio-loop-gen
+
+        pip install -r build-requirements.txt
         
         pip install -r requirements.txt
 
@@ -44,7 +52,7 @@ __audio_loop_gen__ is based on Meta's [MusicGen](https://audiocraft.metademolab.
   
         ollama serve
 
-  - In yet another terminal download the Mistral 7B model (only the very fisrt time!):
+  - In yet another terminal download the LLM model you'd like to use (only the very fisrt time!). Mistral is used by default, so:
 
         ollama pull mistral
 
@@ -80,9 +88,9 @@ Examples:
 
         --bpm                                    INTEGER RANGE [24<=x<=240]  The beats per minute to target for the generated audio [default: 60]
 
-        --max-duration                           INTEGER RANGE [5<=x<=120]   The maximum duration in seconds of the generated loop [default: 66]
+        --max-duration                           INTEGER RANGE [8<=x<=128]   The maximum duration in seconds of the generated loop [default: 66]
 
-        --min-duration                           INTEGER RANGE [5<=x<=120]   The minimum duration in seconds for the generated loop [default: 40]
+        --min-duration                           INTEGER RANGE [8<=x<=128]   The minimum duration in seconds for the generated loop [default: 40]
         
         --seed                                   INTEGER                     The seed to use for the varios random generators to allow reproducability. -1 for random. [default: -1]
 
@@ -124,9 +132,9 @@ Examples:
          
          --audio-model                              TEXT                       The name of the MusicGen model to use. [default: facebook/musicgen-stereo-large]
          
-         --max-duration                             INTEGER RANGE [5<=x<=120]  The maximum duration in seconds of the generated loop [default: 66]
+         --max-duration                             INTEGER RANGE [8<=x<=128]  The maximum duration in seconds of the generated loop [default: 66]
          
-         --min-duration                             INTEGER RANGE [5<=x<=120]  The minimum duration in seconds for the generated loop [default: 40]
+         --min-duration                             INTEGER RANGE [8<=x<=128]  The minimum duration in seconds for the generated loop [default: 40]
 
          --save-format                              [flac|mp3|ogg|wav]         The format to use when exporting the generated audio file. [default: mp3]
          

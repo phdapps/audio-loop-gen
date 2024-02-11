@@ -16,7 +16,6 @@ import librosa
 
 from audiocraft.data.audio import audio_write
 
-
 class AudioData:
     """ Generic audio data container/wrapper used throughout the library.
     """
@@ -45,7 +44,7 @@ class AudioData:
     def mono_audio_data(self) -> ndarray:
         if self.__mono_audio_data is None:
             if self.is_stereo:
-                self.__mono_audio_data = self.audio_data.mean(axis=0)
+                self.__mono_audio_data = np.atleast_2d(self.audio_data.mean(axis=0))
             else:
                 self.__mono_audio_data = self.audio_data
         return self.__mono_audio_data
@@ -359,7 +358,8 @@ def equal_power_crossfade_arrays(audio_a: np.ndarray, audio_b: np.ndarray, sampl
         raise ValueError("Crossfade duration is too long for the length of one or both audio segments.")
 
     # Create equal power crossfade curves using sine and cosine
-    t = np.linspace(min_level*np.pi / 2, max_level*np.pi / 2, crossfade_samples, dtype=np.float32)
+    half_pi = np.pi / 2
+    t = np.linspace(min_level*half_pi, max_level*half_pi, crossfade_samples, dtype=np.float32)
     fade_out = np.cos(t)  # Decreases in volume
     fade_in = np.sin(t)   # Increases in volume
 
@@ -377,7 +377,7 @@ def equal_power_crossfade_arrays(audio_a: np.ndarray, audio_b: np.ndarray, sampl
 
     return final_audio
 
-def fade_in(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int) -> np.ndarray:
+def fade_in(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int, min_level: float = 0.0, max_level: float = 1.0, in_place: bool = False) -> np.ndarray:
     """ Applies a fade-in effect to the start of an audio segment.
 
     Args:
@@ -389,17 +389,18 @@ def fade_in(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int) -> 
         np.ndarray: The audio data with the fade-in effect applied. It's a copy of the original audio data, which is not modified.
     """
     fade_samples = int(sample_rate * fade_duration_ms / 1000)
-    fade = np.linspace(0, 1, fade_samples, dtype=np.float32)
+    fade = np.linspace(min_level, max_level, fade_samples, dtype=np.float32)
     # Create a copy of the audio data
 
-    audio_data_faded = audio_data.copy()
+    if not in_place:
+        audio_data = audio_data.copy()
 
     # Apply fade to the beginning of the loop
-    audio_data_faded[:, :fade_samples] *= fade
+    audio_data[:, :fade_samples] *= fade
 
-    return audio_data_faded
+    return audio_data
 
-def fade_out(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int) -> np.ndarray:
+def fade_out(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int, min_level: float = 0.0, max_level: float = 1.0, in_place: bool = False) -> np.ndarray:
     """ Applies a fade-out effect to the start of an audio segment.
 
     Args:
@@ -411,14 +412,15 @@ def fade_out(audio_data: np.ndarray, sample_rate: int, fade_duration_ms: int) ->
         np.ndarray: The audio data with the fade-out effect applied. It's a copy of the original audio data, which is not modified.
     """
     fade_samples = int(sample_rate * fade_duration_ms / 1000)
-    fade = np.linspace(1, 0, fade_samples, dtype=np.float32)
+    fade = np.linspace(max_level, min_level, fade_samples, dtype=np.float32)
 
-    audio_data_faded = audio_data.copy()
+    if not in_place:
+        audio_data = audio_data.copy()
 
     # Apply fade to the end of the loop
-    audio_data_faded[:, -fade_samples:] *= fade
+    audio_data[:, -fade_samples:] *= fade
 
-    return audio_data_faded
+    return audio_data
 
 
 def nearest_zero_crossing(audio_data: ndarray, start_index: int) -> int:
@@ -612,49 +614,90 @@ def prune_silence(audio: AudioData, min_silence_ms: int = 1000, keep_silence_ms:
     # Stack processed channels back into multi-channel format
     return AudioData(np.stack(processed_audio_channels, axis=0), audio.sample_rate)
 
-
-def slice_and_blend(audio: AudioData, loop_start: int, loop_end: int, blend_duration_ms: int = 10) -> AudioData:
-    """ Slice a loop from the audio data and apply some blending to avoid clicks.
-
+def adjust_loop_ends(loop: AudioData, loop_start: int, loop_end: int) -> tuple[int, int]:
+    """Adjust the loop using the proximity of onsets to the loop ends
+    
     Args:
-        audio (AudioData): The audio data to slice from.
-        loop_start (int): The start index of the cut.
-        loop_end (int): The end index of the cut.
-        blend_samples (int, optional): How long the blending interval is. Defaults to 100.
-
+        audio (AudioData): The audio data to analyze
+        loop_start (int): The start index of the loop
+        loop_end (int): The end index of the loop
+        
     Returns:
-        AudioData: The sliced and blended audio data.
+        tuple[int, int]: The adjusted loop start and end indices
     """
-    # Slice the loop and apply blending
-    # Quick blend to avoid clicks
-    audio_data = audio.audio_data
-    blend_samples = int(audio.sample_rate * blend_duration_ms / 1000)
-    lead_start = max(0, loop_start - blend_samples)
-    if audio_data.ndim == 2 and audio_data.shape[0] == 2:
-        audio_data = audio_data[:, loop_start:loop_end]
-        lead = audio_data[:, lead_start:loop_start]
-        num_lead = len(lead[0])
-        if num_lead > 0:
-            audio_data[:, -
-                       num_lead:] *= np.linspace(1, 0, num_lead, dtype=np.float32)
-            audio_data[:, -num_lead:] += np.linspace(
-                0, 1, num_lead, dtype=np.float32) * lead
-        else:
-            audio_data = crossfade(audio_data, audio.sample_rate, 100)
-    else:
-        audio_data = audio_data[loop_start: loop_end]
-        lead = audio_data[lead_start: loop_start]
-        num_lead = len(lead)
-        if num_lead > 0:
-            audio_data[-num_lead:] *= np.linspace(1,
-                                                  0, num_lead, dtype=np.float32)
-            audio_data[-num_lead:] += np.linspace(0,
-                                                  1, num_lead, dtype=np.float32) * lead
-        else:
-            audio_data = crossfade(audio_data, audio.sample_rate, 100)
+    mono_samples = loop.mono_audio_data[0]
+    # Analyze onset strength
+    onset_env = librosa.onset.onset_strength(y=mono_samples, sr=loop.sample_rate)
+    # Find onsets
+    onsets = librosa.onset.onset_detect(onset_envelope=onset_env, sr=loop.sample_rate, units='samples')
+    
+    if len(onsets) > 0:
+        # Find the closest onsets
+        start_onset = min(onsets, key=lambda x:abs(x-loop_start))
+        end_onset = min(onsets, key=lambda x:abs(x-loop_end))
+        if start_onset >= 0:
+            loop_start = start_onset
+        if end_onset < loop.length:
+            loop_end = end_onset
+    return loop_start, loop_end
 
-    return AudioData(audio_data, audio.sample_rate)
+def align_phase(audio_data: ndarray, loop_start: int, loop_end: int, segment_length: int=2048, in_place = False, crossfade_min: float = 0, crossfade_max: float = 1.0) -> ndarray:
+    """
+    Aligns phase between the start and end of a loop within a multi-channel audio signal.
+    
+    Parameters:
+    audio_data (np.ndarray): The multi-channel audio data array of shape (C, S).
+    loop_start (int): The starting sample index of the loop.
+    loop_end (int): The ending sample index of the loop.
+    segment_length (int): Length of the segments to be used for phase alignment.
+    
+    Returns:
+    np.ndarray: The phase-aligned audio data.
+    """
+    # Validate loop indices
+    if loop_start < 0 or loop_end >= audio_data.shape[1] or loop_end <= loop_start:
+        raise ValueError("Invalid loop_start or loop_end indices")
+    
+    if not in_place:
+        audio_data = audio_data.copy()
+    
+    sample_count = audio_data.shape[1]
+    # Ensure the segment length does not exceed the loop length and available samples after loop_end
+    segment_length = min(segment_length, sample_count)
+    
+    segment_a_start = min(max(loop_start - segment_length//2, 0), sample_count - segment_length)
+    segment_b_start = min(max(loop_end - segment_length//2, 0), sample_count - segment_length)
 
+    # Iterate over each channel
+    for channel in range(audio_data.shape[0]):
+        # Extract segments for phase comparison
+        segment_a = audio_data[channel, segment_a_start:segment_a_start + segment_length]
+        segment_b = audio_data[channel, segment_b_start:segment_b_start + segment_length]
+        
+        # Compute the FFT of both segments
+        fft_a = np.fft.fft(segment_a)
+        fft_b = np.fft.fft(segment_b)
+        
+        # Calculate the phase difference and adjust the end segment
+        phase_diff = np.angle(fft_a) - np.angle(fft_b)
+        adjusted_fft_b = np.abs(fft_b) * np.exp(1j * (np.angle(fft_b) + phase_diff))
+        
+        # Apply inverse FFT to get the time-domain signal back
+        adjusted_segment_b = np.real(np.fft.ifft(adjusted_fft_b))
+        
+        # Crossfade blending
+        half_pi = np.pi / 2
+        t = np.linspace(crossfade_min * half_pi, crossfade_max * half_pi, segment_length)
+        fade_out = np.cos(t)  # Decreases in volume
+        fade_in = np.sin(t)   # Increases in volume
+
+        original_segment = audio_data[channel, segment_b_start:segment_b_start + segment_length]
+        
+        blended_segment = original_segment * fade_out + adjusted_segment_b * fade_in
+        
+        audio_data[channel, segment_b_start:segment_b_start + segment_length] = blended_segment
+
+    return audio_data
 
 def export_audio(audio: AudioData, filename_base: str, format="wav"):
     """ Write the audio data to a WAV file.

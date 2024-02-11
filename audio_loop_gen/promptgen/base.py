@@ -1,47 +1,56 @@
 import random
 import re
 import logging
-from typing import Callable, Concatenate
+from typing_extensions import Callable, Concatenate, ParamSpec
 from ..util import LoopGenParams
 
+PS = ParamSpec("PS")
 NUMBERED_LINE_REGEX = re.compile(r"^\d+[\.]?\s+(.*)")
 
 LLM_CHAT_SYSTEM_MESSAGE = \
-"""Act as a music expert who can create a wide variety of prompts for music generation.
-Your answers should contain 2 parts separated by a pipe character "|", prompt and bpm:
-1. `prompt` is the description of the music to generate.  
-These are the main parts of a `prompt`:
+"""Act as a music expert who can come up with a wide variety of prompts for music generation using an AI model.
+
+For each music piece you shoult answer with a single line of 2 parts separated by a pipe character "|", the prompt and the bpm:
+1. A "prompt" is the description of the music to generate.  
+These are the main parts of a prompt:
+- melody: A mandatory part that describes the melody in 3-6 words. Mandatory! This can be a simple melody or a more complex one. It should reflect the mood and vary significantly from prompt to prompt.
+- instrumentation: A mandatory part listing the 2-3 main instruments playing the music. For example, "guitar and drums" or "piano, strings, and sax".
 {parts}
 
-DO always include a melody and instrumentation parts!
-DON'T include them all in a single prompt, but choose a few to create a unique prompt!
-DON'T generate prompts longer than 160 characters!
+2. "bpm" is the beats per minute as an integer between 30 and 150.
 
-2. `bpm` is the beats per minute as an integer between 30 and 150, with 80 percent in the 50-120 range.
+DO always include the `melody` and `instrumentation` parts!
+DO always include the prompt and the bpm value on the same line and separated with the pipe symbol "|"!
+DO pick 1-2 random optional parts from the list above to create a unique prompt!
+DO select the bpm values to match the melody description!
+DO prefer bpm values between 50 and 120, 80 percent of bpm values should be in this range!
+DO NOT generate prompts longer than 160 characters!
+DO NOT include any other information in your answer!
+DO NOT use any quotes or backticks in your answer!
+DO NOT number the lines in your answer!
 
-You should always follow the set of parameters for generating a melody as described above. They should always be on a single line, i.e. no line breaks, followed by the pip symbol `|` and the `bpm` details!
-
-Example line (make sure all keys like 'prompt:' and 'bpm:' are present! Don't include quotes):
-"{example}"
+Some examples of correct responses:
+{examples}
 """
 
 MUSIC_PROMPT_PARTS = [
-    """- melody: A description of a melody in 5-10 words. Mandatory! This can be a simple melody or a more complex one. It should reflect the mood and vary significantly from prompt to prompt.""",
-    """- instrumentation: 3-10 words. Mandatory! The instruments used in a song. For example, "guitar and drums" or "piano and strings".""",
-    """- chord progression: 3-10 words. Optional. The chord progression used in a song. For example, "simple 4-chord progression" or "complex jazz chords".""",
-    """- mood and genre: 3-10 words. Optional. Choose from the a wide spectrum of emotions. For examples, "upbeat pop song" or "sad piano ballad", etc.""",
-    """- tempo and rhythm: 1-5 words. For example, "slow and steady" or "fast and upbeat". This should also match the `bpm` parameter!""",
-    """- musical elements: 3-10 words. For example, "catchy hook" or "haunting melody".""",
-    """- musical inspiration: 1-5 words. For example, "inspired by classical music" or "influenced by jazz"."""
+    """- chord progression: An optional part describing the chord progression in 2-5 words. For example, "simple 4-chord progression" or "complex jazz chords".""",
+    """- mood and genre: An optional part listing the 1-3 characterstics of the melody. Choose from the a wide spectrum of human emotions. For examples, "upbeat pop song" or "sad piano ballad", etc.""",
+    """- tempo and rhythm: An optional part of 1-3 words. For example, "slow and steady" or "fast and upbeat". This should be reflected in the `bpm` value, i.e. a slow song should have a low bpm!""",
+    """- musical elements: An optional part of 1-4 melody qualifiers. For example, "catchy hook" or "haunting melody".""",
+    """- musical inspiration: An optional part of 1-4 words. For example, "inspired by classical music" or "influenced by jazz"."""
 ]
 
 MUSIC_PROMPT_EXAMPLES = [
-    "prompt:upbeat pop song, carefree and happy mood, basic 4-chord progression, guitar and drums with a hint of synth, simple and catchy melody, danceable rhythm|bpm:120"
-    "prompt:haunting and melancholic balad, slow chord progression, sad and somber mood, piano and strings, influenced by classical music, slow and steady|bpm:60",
-    "prompt:complex and intricate melody, jazzy chord progression, mysterious jazz tune, dark and moody, saxophone and piano with a hint of trumpet. medium, laid-back tempo|bpm:90",
-    "prompt:slow and dreamy ambient electronic melody, lush and ethereal chord progression, spacey and atmospheric mood, synth and pads, influenced by EDM|bpm:50"
-    "prompt:fast and energetic upbeat rock melody, anthemic and triumphant mood, guitar and drums with a hint of bass. Fast and powerful with a driving rhythm. Inspired by classic rock.|bpm:130",
-    "prompt:hip-hop dance beat, simple and repetitive chord progression, upbeat and energetic mood, synth, drums and bass, catchy hook|bpm:100"
+    "environmentally conscious melody, earthy tones, ukulele-infused, harmonic, breezy, easygoing, organic instrumentation, gentle grooves|90",
+    "80s electronic track with melodic synthesizers, catchy beat and groovy bass|100",
+    "smooth jazz, with a saxophone solo, piano chords, and snare full drums|65",
+    "a grand orchestral arrangement with thunderous percussion, epic brass fanfares, and soaring strings, creating a cinematic atmosphere fit for a heroic battle|120",
+    "Rock with saturated guitars, a heavy bass line and crazy drum break and fills|130",
+    "Funky and confident, featuring groovy electric guitar, keyboards that create a chill, laid-back mood|80"
+    "a light and cheerly EDM track, with syncopated drums, aery pads, and strong emotions|120",
+    "acoustic folk song to play during roadtrips with guitar, flute, choirs|80",
+    "A dynamic blend of hip-hop and orchestral elements, with sweeping strings and brass, evoking the vibrant energy of the city|100",
 ]
 
 def trim_line(text:str) -> str:
@@ -59,13 +68,13 @@ def randomized_llm_chat_system_message(seed = -1):
     # randomize the instructions slightly to avoid getting too similar prompts
     parts = MUSIC_PROMPT_PARTS[:]
     random.shuffle(parts)
-    example = random.choice(MUSIC_PROMPT_EXAMPLES)
-    return LLM_CHAT_SYSTEM_MESSAGE.format(parts="\n".join(parts), example=example)
+    examples = random.sample(MUSIC_PROMPT_EXAMPLES, 3)
+    return LLM_CHAT_SYSTEM_MESSAGE.format(parts="\n".join(parts), examples="\n".join(examples))
 
 class PromptGenerator(object):
     """ Base class for prompt generators.
     """
-    def __init__(self, use_case:str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
+    def __init__(self, use_case:str = None, params_callback: Callable[Concatenate[str, int, PS], LoopGenParams] = None):
         self.use_case = use_case
         self.params_callback = params_callback if params_callback else lambda prompt, bpm, **kwargs: LoopGenParams(
             prompt=prompt, bpm=bpm, **kwargs)

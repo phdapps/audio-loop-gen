@@ -1,12 +1,12 @@
 import asyncio
-from typing import Callable, Concatenate
+from typing_extensions import Callable, Concatenate
 
-from .base import PromptGenerator
+from .base import PromptGenerator, PS
 from ..util import LoopGenParams
 
 class Manual(PromptGenerator):
     """ Generator that reads user input from the console asynchronously. """
-    def __init__(self, use_case:str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
+    def __init__(self, use_case:str = None, params_callback: Callable[Concatenate[str, int, PS], LoopGenParams] = None):
         super().__init__(use_case=use_case, params_callback = params_callback)
 
     async def generate(self, max_count: int = 1, seed: int = -1) -> list[LoopGenParams]:
