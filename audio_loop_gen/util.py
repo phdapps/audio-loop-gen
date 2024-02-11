@@ -358,7 +358,8 @@ def equal_power_crossfade_arrays(audio_a: np.ndarray, audio_b: np.ndarray, sampl
         raise ValueError("Crossfade duration is too long for the length of one or both audio segments.")
 
     # Create equal power crossfade curves using sine and cosine
-    t = np.linspace(min_level*np.pi / 2, max_level*np.pi / 2, crossfade_samples, dtype=np.float32)
+    half_pi = np.pi / 2
+    t = np.linspace(min_level*half_pi, max_level*half_pi, crossfade_samples, dtype=np.float32)
     fade_out = np.cos(t)  # Decreases in volume
     fade_in = np.sin(t)   # Increases in volume
 
@@ -640,7 +641,7 @@ def adjust_loop_ends(loop: AudioData, loop_start: int, loop_end: int) -> tuple[i
             loop_end = end_onset
     return loop_start, loop_end
 
-def align_phase(audio_data: ndarray, loop_start: int, loop_end: int, segment_length: int=2048, in_place = False) -> ndarray:
+def align_phase(audio_data: ndarray, loop_start: int, loop_end: int, segment_length: int=2048, in_place = False, crossfade_min: float = 0, crossfade_max: float = 1.0) -> ndarray:
     """
     Aligns phase between the start and end of a loop within a multi-channel audio signal.
     
@@ -685,10 +686,14 @@ def align_phase(audio_data: ndarray, loop_start: int, loop_end: int, segment_len
         adjusted_segment_b = np.real(np.fft.ifft(adjusted_fft_b))
         
         # Crossfade blending
-        crossfade_window = np.linspace(0, 1, segment_length)
+        half_pi = np.pi / 2
+        t = np.linspace(crossfade_min * half_pi, crossfade_max * half_pi, segment_length)
+        fade_out = np.cos(t)  # Decreases in volume
+        fade_in = np.sin(t)   # Increases in volume
+
         original_segment = audio_data[channel, segment_b_start:segment_b_start + segment_length]
         
-        blended_segment = (1 - crossfade_window) * original_segment + crossfade_window * adjusted_segment_b
+        blended_segment = original_segment * fade_out + adjusted_segment_b * fade_in
         
         audio_data[channel, segment_b_start:segment_b_start + segment_length] = blended_segment
 

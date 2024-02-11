@@ -39,8 +39,7 @@ class BeatDetect(LoopStrategy):
         
         suitable = start >= 0 and end >= 0
         if suitable:
-            loop_duration = ((end - start) /
-                             self.audio.sample_rate)*1000  # in milliseconds
+            loop_duration = (end - start) * 1000 / self.audio.sample_rate # in milliseconds
             suitable = loop_duration >= self.min_loop_duration
         
         if suitable:

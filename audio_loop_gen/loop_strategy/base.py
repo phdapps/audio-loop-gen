@@ -2,17 +2,15 @@ import logging
 
 from ..util import AudioData, fade_in, fade_out, equal_power_crossfade, adjust_loop_ends, align_phase
 
-CROSSFADE_DURATION_MS = 800
-CROSSFADE_MIN_LEVEL = 0.33
-CROSSFADE_MAX_LEVEL = 0.66
-BLEND_FADE_DURATION_MS = 1000
+CROSSFADE_DURATION_MS = 600
+CROSSFADE_MIN_LEVEL = 0
+CROSSFADE_MAX_LEVEL = 0.50
+BLEND_FADE_DURATION_MS = CROSSFADE_DURATION_MS * 2
 BLEND_FADE_IN_LEVEL = 0.5
 BLEND_FADE_OUT_LEVEL = 0.4
-PHASE_ALIGN_DURATION_MS = 600
+PHASE_ALIGN_DURATION_MS = CROSSFADE_DURATION_MS * 2
 
 class LoopStrategy(object):
-    BLEND_SAMPLES = 100
-    
     strategy_id: str = None
     
     """A LoopStrategy is used to generate a loop from a given audio segment. 
