@@ -1,13 +1,17 @@
 --extra-index-url https://download.pytorch.org/whl/cu121
 torch==2.1.0+cu121
-triton ; sys_platform != "win32"
 cython
 numpy
-scipy
+triton ; sys_platform != "win32"
 librosa
+madmom
+pyaudio
+BeatNet
+scipy
 git+https://github.com/facebookresearch/audiocraft.git
 ollama
 openai
 boto3
 uuid6
 typer[all]
+typing-extensions

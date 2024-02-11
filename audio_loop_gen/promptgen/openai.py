@@ -1,7 +1,7 @@
-from typing import Callable, Concatenate
+from typing_extensions import Callable, Concatenate
 import openai
 
-from .base import PromptGenerator, trim_line, randomized_llm_chat_system_message
+from .base import PromptGenerator, trim_line, randomized_llm_chat_system_message, PS
 from ..util import LoopGenParams
 
 OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE = "Generate {count} sets of parameters for generating a melody."
@@ -9,7 +9,7 @@ OPENAI_CHAT_COMPLETION_USER_MESSAGE_TEMPLATE_USE_CASE_EXTRA =  "The melody's use
 
 TRIM_LINE_NUM_REGEX = r"^\d+\s+"
 class OpenAI(PromptGenerator):
-    def __init__(self, api_key: str, model_id: str = None, use_case:str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
+    def __init__(self, api_key: str, model_id: str = None, use_case:str = None, params_callback: Callable[Concatenate[str, int, PS], LoopGenParams] = None):
         super().__init__(use_case=use_case, params_callback = params_callback)
         if api_key is None:
             raise ValueError("Missing API key!")

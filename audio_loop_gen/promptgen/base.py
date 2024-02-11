@@ -1,9 +1,10 @@
 import random
 import re
 import logging
-from typing import Callable, Concatenate
+from typing_extensions import Callable, Concatenate, ParamSpec
 from ..util import LoopGenParams
 
+PS = ParamSpec("PS")
 NUMBERED_LINE_REGEX = re.compile(r"^\d+[\.]?\s+(.*)")
 
 LLM_CHAT_SYSTEM_MESSAGE = \
@@ -73,7 +74,7 @@ def randomized_llm_chat_system_message(seed = -1):
 class PromptGenerator(object):
     """ Base class for prompt generators.
     """
-    def __init__(self, use_case:str = None, params_callback: Callable[Concatenate[str, int, ...], LoopGenParams] = None):
+    def __init__(self, use_case:str = None, params_callback: Callable[Concatenate[str, int, PS], LoopGenParams] = None):
         self.use_case = use_case
         self.params_callback = params_callback if params_callback else lambda prompt, bpm, **kwargs: LoopGenParams(
             prompt=prompt, bpm=bpm, **kwargs)

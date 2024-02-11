@@ -31,9 +31,8 @@ class LoopGenerator(object):
         """
         Prepare the ordered list of strategies to be used for looping.
         """
-        available_strategy_types: list[type] = [
-            BeatDetect, TransientAligned, CrossFade]
-        strategies: [LoopStrategy] = []
+        available_strategy_types = [BeatDetect, TransientAligned, CrossFade]
+        strategies = []
         for stype in available_strategy_types:
             if (not self.__params.strategy_id) or stype.strategy_id == self.__params.strategy_id:
                 strategies.append(stype(

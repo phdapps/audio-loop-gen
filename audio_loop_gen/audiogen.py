@@ -1,5 +1,5 @@
 import logging
-
+import warnings
 from typing import Tuple, Callable
 
 import numpy as np
@@ -10,6 +10,8 @@ from audiocraft.models import MusicGen
 
 from .util import set_all_seeds, AudioGenParams
 DEFAULT_MODEL_ID = "facebook/musicgen-stereo-large"
+
+warnings.filterwarnings("ignore", category=UserWarning) # for pytorch deprecation warnings from MusicGen
 
 class AudioGenerator:
     """ Generates an audio segment using one of Meta's Audiocraft:MusicGen models.

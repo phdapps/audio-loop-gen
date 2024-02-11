@@ -1,14 +1,15 @@
 import logging
+import numpy as np
 
-from ..util import AudioData, fade_in, fade_out, equal_power_crossfade, adjust_loop_ends, align_phase
+from ..util import AudioData, fade_in, fade_out, align_phase
 
-CROSSFADE_DURATION_MS = 600
-CROSSFADE_MIN_LEVEL = 0
-CROSSFADE_MAX_LEVEL = 0.50
-BLEND_FADE_DURATION_MS = CROSSFADE_DURATION_MS * 2
-BLEND_FADE_IN_LEVEL = 0.5
-BLEND_FADE_OUT_LEVEL = 0.4
-PHASE_ALIGN_DURATION_MS = CROSSFADE_DURATION_MS * 2
+BLEND_DURATION_MS = 50
+FADE_IN_DURATION_MS = 500
+FADE_IN_MIN_LEVEL = 0.66
+FADE_IN_MAX_LEVEL = 1.0
+FADE_OUT_DURATION_MS = 800
+FADE_OUT_MIN_LEVEL = 0.5
+FADE_OUT_MAX_LEVEL = 1.0
 
 class LoopStrategy(object):
     strategy_id: str = None
@@ -69,19 +70,21 @@ class LoopStrategy(object):
             AudioData: The sliced and blended audio data.
         """
         # Slice the loop and apply blending
-        # Quick blend to avoid clicks
         audio_data = loop.audio_data
-        loop_start, loop_end = adjust_loop_ends(loop, loop_start, loop_end)
-        
-        align_length = min((loop_end - loop_start) // 2, (loop.sample_rate * PHASE_ALIGN_DURATION_MS) // 1000) # PHASE_ALIGN_DURATION_MS or half the loop length
-        audio_data = align_phase(audio_data, loop_start, loop_end, segment_length=align_length, in_place=True)
+        # Quick blend to avoid clicks
+        blend_samples = BLEND_DURATION_MS * loop.sample_rate // 1000
+        lead_start = max(loop_start - blend_samples // 2, 0)
+        blend_end = min(loop_end + blend_samples // 2, audio_data.shape[1])
+        lead = audio_data[:, lead_start:lead_start + blend_samples]
+        audio_data = audio_data.copy()
+        c_in = np.linspace(0, 1, blend_samples)
+        c_out = np.linspace(1, 0, blend_samples)
+        audio_data[:, blend_end - blend_samples: blend_end] *= c_out
+        audio_data[:, blend_end - blend_samples: blend_end] += c_in * lead[:, :]
         
         audio_data = audio_data[:, loop_start:loop_end]
-        # first crossfade with the start of the loop
-        audio_data = equal_power_crossfade(audio_data, loop.sample_rate, crossfade_duration_ms=CROSSFADE_DURATION_MS, max_level=CROSSFADE_MAX_LEVEL, min_level=CROSSFADE_MIN_LEVEL)
-        # then apply some fading at start and end
-        audio_data = fade_in(audio_data, loop.sample_rate, BLEND_FADE_DURATION_MS, min_level=BLEND_FADE_IN_LEVEL, in_place=True)
-        audio_data = fade_out(audio_data, loop.sample_rate, BLEND_FADE_DURATION_MS, min_level=BLEND_FADE_OUT_LEVEL, in_place=True)
+        audio_data = fade_in(audio_data, loop.sample_rate, fade_duration_ms=FADE_IN_DURATION_MS, min_level=FADE_IN_MIN_LEVEL, max_level=FADE_IN_MAX_LEVEL, in_place=True)
+        audio_data = fade_out(audio_data, loop.sample_rate, fade_duration_ms=FADE_OUT_DURATION_MS, min_level=FADE_OUT_MIN_LEVEL, max_level=FADE_OUT_MAX_LEVEL, in_place=True)
         
         return AudioData(audio_data, loop.sample_rate)
                 

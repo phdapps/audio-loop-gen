@@ -15,12 +15,18 @@ __audio_loop_gen__ is based on Meta's [MusicGen](https://audiocraft.metademolab.
 ## Installation
 
 - Install *ffmpeg* for your OS
-  
-- Tested with Python 3.11 only.
-  
-  - Create a dedicated environment with Python 3.11. Using [Anaconda](https://www.anaconda.com/download/) is highly recommended!
 
-        conda create --name loopgen python=3.11
+- Install PortAudio for you platform:
+  
+        sudo apt-get install portaudio19-dev (Linux)
+
+        https://winget.run/pkg/intxcc/pyaudio (Windows)
+  
+- The library uses [BeatNet](https://github.com/mjhydri/BeatNet) which only works with Python 3.9 or earlier! This code was tested with Python 3.9 only.
+  
+- Create a dedicated environment with Python 3.9. Using [Anaconda](https://www.anaconda.com/download/) is highly recommended!
+
+        conda create --name loopgen python=3.9
 
         conda activate loopgen
 
@@ -31,6 +37,8 @@ __audio_loop_gen__ is based on Meta's [MusicGen](https://audiocraft.metademolab.
 - Install the requirements:
 
         cd audio-loop-gen
+
+        pip install -r build-requirements.txt
         
         pip install -r requirements.txt
 
