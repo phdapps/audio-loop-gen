@@ -63,7 +63,7 @@ class AudioGenerator:
         
         # generate the initial segment
         self.__model.set_generation_params(
-            duration=duration, top_k=params.top_k, top_p=params.top_p, temperature=params.temperature, cfg_coef=params.cfg_coef)
+            duration=duration, top_k=params.top_k, top_p=params.top_p, temperature=params.temperature, cfg_coef=params.cfg_coef, extend_stride=9)
         wav = self.__model.generate([prompt], progress=self.__progress)
         
         result = wav[0].cpu().numpy()
